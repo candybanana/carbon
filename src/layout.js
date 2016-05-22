@@ -29,7 +29,7 @@ var Layout = function(optParams) {
 
   this.type = params.type;
   this.dom.setAttribute('contenteditable', false);
-  this.dom.classList.add('carbon-layout');
+  this.dom.classList.add(Layout.ELEMENT_CLASS_NAME);
   this.dom.classList.add(this.type);
 };
 Layout.prototype = Object.create(Section.prototype);
@@ -43,6 +43,11 @@ module.exports = Layout;
 Layout.CLASS_NAME = 'Layout';
 Loader.register(Layout.CLASS_NAME, Layout);
 
+/**
+ * Element class name.
+ * @type {string}
+ */
+Layout.ELEMENT_CLASS_NAME = 'carbon-layout';
 
 /**
  * Unordered Layout component container element tag name.

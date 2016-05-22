@@ -7,12 +7,13 @@ var List = require('./list');
 var Figure = require('./figure');
 var Section = require('./section');
 var Utils = require('./utils');
-var FormattingExtension = require('./extensions/formattingExtension');
+// var FormattingExtension = require('./extensions/formattingExtension');
+var FormattingExtension = require('./extensions/FormattingBasicExtension');
 var ShortcutsManager = require('./extensions/shortcutsManager');
 var ComponentFactory = require('./extensions/componentFactory');
 var Toolbar = require('./toolbars/toolbar');
-var ToolbeltExtension = require('./extensions/toolbeltExtension');
-var UploadExtension = require('./extensions/uploadExtension');
+// var ToolbeltExtension = require('./extensions/toolbeltExtension');
+// var UploadExtension = require('./extensions/uploadExtension');
 var I18n = require('./i18n');
 var Layout = require('./layout');
 
@@ -136,8 +137,8 @@ var Editor = function (element, optParams) {
 
   // Install built-in extensions.
   this.install(FormattingExtension);
-  this.install(ToolbeltExtension);
-  this.install(UploadExtension);
+  // this.install(ToolbeltExtension);
+  // this.install(UploadExtension);
 
   // Install user provided components and extensions.
   for (var i = 0; i < params.modules.length; i++) {
@@ -158,6 +159,11 @@ var Editor = function (element, optParams) {
 Editor.prototype = new Utils.CustomEventTarget();
 module.exports = Editor;
 
+/**
+ * Class name for the editor parent.
+ * @type {string}
+ */
+Editor.ELEMENT_CLASS_NAME = 'carbon-editor';
 
 /**
  * Class name for the inline toolbar.
@@ -217,7 +223,7 @@ Editor.prototype.init = function() {
 
   this.element.addEventListener('cut', this.handleCut.bind(this));
   this.element.addEventListener('paste', this.handlePaste.bind(this));
-  this.element.classList.add('carbon-editor');
+  this.element.classList.add(Editor.ELEMENT_CLASS_NAME);
   this.element.setAttribute('contenteditable', true);
 
   this.selection.addEventListener(

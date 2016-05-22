@@ -172,13 +172,13 @@ module.exports = function(grunt) {
           'copy',
         ]
       },
-      test: {
-        files: [
-          '<%= srcDir %>/**/*.js',
-          '<%= testDir %>/**/*.spec.js'
-        ],
-        tasks: ['test']
-      }
+      // test: {
+      //   files: [
+      //     '<%= srcDir %>/**/*.js',
+      //     '<%= testDir %>/**/*.spec.js'
+      //   ],
+      //   tasks: ['test']
+      // }
     },
 
     connect: {

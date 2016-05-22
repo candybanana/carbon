@@ -529,7 +529,7 @@ Article.prototype.trim = function() {
   }
 };
 
-},{"./extensions/embeddedComponent":9,"./figure":19,"./layout":23,"./loader":25,"./paragraph":27,"./section":28,"./selection":29,"./utils":33}],2:[function(require,module,exports){
+},{"./extensions/embeddedComponent":10,"./figure":17,"./layout":21,"./loader":23,"./paragraph":25,"./section":26,"./selection":27,"./utils":31}],2:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -842,7 +842,7 @@ Component.prototype.rerender = function () {
   // pass.
 };
 
-},{"./errors":4,"./loader":25,"./selection":29,"./utils":33}],3:[function(require,module,exports){
+},{"./errors":4,"./loader":23,"./selection":27,"./utils":31}],3:[function(require,module,exports){
 'use strict';
 
 var Article = require('./article');
@@ -852,12 +852,13 @@ var List = require('./list');
 var Figure = require('./figure');
 var Section = require('./section');
 var Utils = require('./utils');
-var FormattingExtension = require('./extensions/formattingExtension');
+// var FormattingExtension = require('./extensions/formattingExtension');
+var FormattingExtension = require('./extensions/FormattingBasicExtension');
 var ShortcutsManager = require('./extensions/shortcutsManager');
 var ComponentFactory = require('./extensions/componentFactory');
 var Toolbar = require('./toolbars/toolbar');
-var ToolbeltExtension = require('./extensions/toolbeltExtension');
-var UploadExtension = require('./extensions/uploadExtension');
+// var ToolbeltExtension = require('./extensions/toolbeltExtension');
+// var UploadExtension = require('./extensions/uploadExtension');
 var I18n = require('./i18n');
 var Layout = require('./layout');
 
@@ -981,8 +982,8 @@ var Editor = function (element, optParams) {
 
   // Install built-in extensions.
   this.install(FormattingExtension);
-  this.install(ToolbeltExtension);
-  this.install(UploadExtension);
+  // this.install(ToolbeltExtension);
+  // this.install(UploadExtension);
 
   // Install user provided components and extensions.
   for (var i = 0; i < params.modules.length; i++) {
@@ -1003,6 +1004,11 @@ var Editor = function (element, optParams) {
 Editor.prototype = new Utils.CustomEventTarget();
 module.exports = Editor;
 
+/**
+ * Class name for the editor parent.
+ * @type {string}
+ */
+Editor.ELEMENT_CLASS_NAME = 'carbon-editor';
 
 /**
  * Class name for the inline toolbar.
@@ -1062,7 +1068,7 @@ Editor.prototype.init = function() {
 
   this.element.addEventListener('cut', this.handleCut.bind(this));
   this.element.addEventListener('paste', this.handlePaste.bind(this));
-  this.element.classList.add('carbon-editor');
+  this.element.classList.add(Editor.ELEMENT_CLASS_NAME);
   this.element.setAttribute('contenteditable', true);
 
   this.selection.addEventListener(
@@ -2173,7 +2179,7 @@ Editor.prototype.handleCut = function() {
   }, 20);
 };
 
-},{"./article":1,"./extensions/componentFactory":8,"./extensions/formattingExtension":12,"./extensions/shortcutsManager":16,"./extensions/toolbeltExtension":17,"./extensions/uploadExtension":18,"./figure":19,"./i18n":20,"./layout":23,"./list":24,"./paragraph":27,"./section":28,"./selection":29,"./toolbars/toolbar":32,"./utils":33}],4:[function(require,module,exports){
+},{"./article":1,"./extensions/FormattingBasicExtension":5,"./extensions/componentFactory":9,"./extensions/shortcutsManager":16,"./figure":17,"./i18n":18,"./layout":21,"./list":22,"./paragraph":25,"./section":26,"./selection":27,"./toolbars/toolbar":30,"./utils":31}],4:[function(require,module,exports){
 'use strict';
 
 var Errors = {};
@@ -2211,6 +2217,785 @@ Errors.ConfigrationError.prototype = Error.prototype;
 },{}],5:[function(require,module,exports){
 'use strict';
 
+var Paragraph = require('../paragraph');
+var Selection = require('../selection');
+var Utils = require('../utils');
+var Button = require('../toolbars/button');
+var TextField = require('../toolbars/textField');
+var I18n = require('../i18n');
+
+
+/**
+ * Editor formatting logic is an extension to the editor.
+ * @param {Object} optParams Optional params to initialize the Formatting object.
+ * Default:
+ *   {
+ *     enableInline: true,
+ *     enableBlock: true
+ *   }
+ */
+var Formatting = function(optParams) {
+
+  // Override default params with passed ones if any.
+  var params = Utils.extend({
+    // TODO: Use these configurations to disable/enable toolbars.
+    enableInline: true,
+    enableBlock: true
+  }, optParams);
+
+  /**
+   * Whether inline formatting toolbar is enabled.
+   * @type {boolean}
+   */
+  this.enableInline = params.enableInline;
+
+  /**
+   * Whether inline formatting toolbar is enabled.
+   * @type {boolean}
+   */
+  this.enableBlock = params.enableBlock;
+
+  /**
+   * Editor reference.
+   * @type {Editor}
+   */
+  this.editor = null;
+
+};
+module.exports = Formatting;
+
+
+/**
+ * Extension class name.
+ * @type {string}
+ */
+Formatting.CLASS_NAME = 'Formatting';
+
+
+/**
+ * Active button class name.
+ * @type {string}
+ */
+Formatting.ACTIVE_ACTION_CLASS = 'active';
+
+
+/**
+ * Types of formatting.
+ * @enum {string}
+ */
+Formatting.Types = {
+  BLOCK: 'block',
+  INLINE: 'inline'
+};
+
+
+/**
+ * Enable block formatting toolbar on these types of paragraphs.
+ * @type {Array.<String>}
+ */
+Formatting.BLOCK_ENABLED_ON = [
+    Paragraph.Types.Paragraph,
+    // Paragraph.Types.MainHeader,
+    Paragraph.Types.SecondaryHeader,
+    Paragraph.Types.ThirdHeader,
+    Paragraph.Types.Quote,
+    // Paragraph.Types.Code
+];
+
+// override paragraph styles
+// Paragraph.Types.MainHeader = 'h2';
+// Paragraph.Types.SecondaryHeader = 'h3';
+
+/**
+ * Actions allowed on the toolbars.
+ * @type {Object}
+ */
+Formatting.Actions = {
+
+  // Block formatting.
+  // TODO: Implement Ordered and Unordered lists.
+  Block: [{
+  //   label: 'h1',
+  //   value: Paragraph.Types.MainHeader,
+  //   shortcuts: ['alt+cmd+1', 'alt+ctrl+1']
+  // }, {
+    label: 'h2',
+    value: Paragraph.Types.SecondaryHeader,
+    shortcuts: ['alt+cmd+2', 'alt+ctrl+2']
+  }, {
+    label: 'h3',
+    value: Paragraph.Types.ThirdHeader,
+    shortcuts: ['alt+cmd+3', 'alt+ctrl+3']
+  }, {
+    label: '”',
+    value: Paragraph.Types.Quote,
+    shortcuts: ['alt+cmd+4', 'alt+ctrl+4']
+  // }, {
+  //   label: '{}',
+  //   value: Paragraph.Types.Code,
+  //   shortcuts: ['alt+cmd+5', 'alt+ctrl+5']
+  }],
+
+  Inline: [{
+    label: 'B',
+    value: 'strong',
+    tagNames: ['strong', 'b'],
+    shortcuts: ['ctrl+b', 'cmd+b']
+  }, {
+    label: 'I',
+    value: 'em',
+    tagNames: ['em', 'i'],
+    shortcuts: ['ctrl+i', 'cmd+i']
+  }, {
+  //   label: 'U',
+  //   value: 'u',
+  //   tagNames: ['u'],
+  //   shortcuts: ['ctrl+u', 'cmd+u']
+  // }, {
+    label: 'S',
+    value: 's',
+    tagNames: ['strike', 's'],
+    shortcuts: ['ctrl+s', 'cmd+s']
+  }, {
+    label: 'a',
+    value: 'a',
+    attrs: {
+      href: {
+        required: true,
+        placeholder: 'What is the URL?'
+      }
+    },
+    tagNames: ['a'],
+    shortcuts: ['ctrl+k', 'cmd+k']
+  }]
+};
+
+
+/**
+ * Name of the block toolbar.
+ * @type {string}
+ */
+Formatting.BLOCK_TOOLBAR_NAME = 'block-toolbar';
+
+
+/**
+ * Name of the inline toolbar.
+ * @type {string}
+ */
+Formatting.INLINE_TOOLBAR_NAME = 'inline-toolbar';
+
+
+/**
+ * Initializes the formatting extensions.
+ * @param  {Editor} editor Editor instance this installed on.
+ */
+Formatting.onInstall = function(editor) {
+  // Ugly hack because we can't load I18n strings on load time.
+  // TODO(mkhatib): Figure out a better way to handle this.
+  var a = Formatting.getActionForTagName('a');
+  a.attrs.href.placeholder = I18n.get('placeholder.href');
+
+  var formattingExtension = new Formatting();
+  formattingExtension.init(editor);
+};
+
+
+/**
+ * Call to destroy instance and cleanup dom and event listeners.
+ */
+Formatting.onDestroy = function() {
+  // pass
+};
+
+
+/**
+ * Initializes the formatting extension.
+ * @param  {Editor} editor The parent editor for the extension.
+ */
+Formatting.prototype.init = function(editor) {
+  this.editor = editor;
+  this.blockToolbar = editor.getToolbar(Formatting.BLOCK_TOOLBAR_NAME);
+  this.inlineToolbar = editor.getToolbar(Formatting.INLINE_TOOLBAR_NAME);
+
+  // Inline toolbar used for formatting inline elements (bold, italic...).
+  this.initInlineToolbarButtons();
+
+  // Block toolbar used for formatting block elements (h1, h2, pre...).
+  this.initBlockToolbarButtons();
+
+  // Register keyboard shortcuts to handle formatting.
+  this.registerFormattingShortcuts_();
+
+  // Initializes event listener to update toolbars position and status
+  // when selection or cursor change.
+  this.editor.article.selection.addEventListener(
+      Selection.Events.SELECTION_CHANGED,
+      this.handleSelectionChangedEvent.bind(this));
+};
+
+
+/**
+ * Creates inline formatting toolbar.
+ * @return {HTMLElement} Toolbar Element.
+ */
+Formatting.prototype.initInlineToolbarButtons = function() {
+  var actions = Formatting.Actions.Inline;
+  for (var i = 0; i < actions.length; i++) {
+    var fields = this.createExtraFields(actions[i]);
+    var button = new Button({
+      name: actions[i].value,
+      label: actions[i].label,
+      data: actions[i],
+      fields: fields || []
+    });
+    button.addEventListener(
+        'click', this.handleInlineFormatterClicked.bind(this));
+    this.inlineToolbar.addButton(button);
+  }
+};
+
+
+/**
+ * Creates block formatting toolbar.
+ */
+Formatting.prototype.initBlockToolbarButtons = function() {
+  var actions = Formatting.Actions.Block;
+  for (var i = 0; i < actions.length; i++) {
+    var button = new Button({
+      name: actions[i].value,
+      label: actions[i].label,
+      data: actions[i]
+    });
+    button.addEventListener(
+        'click', this.handleBlockFormatterClicked.bind(this));
+    this.blockToolbar.addButton(button);
+  }
+};
+
+
+/**
+ * Registers shortcuts to handle formatting.
+ */
+Formatting.prototype.registerFormattingShortcuts_ = function () {
+  for (var formatType in Formatting.Actions) {
+    var actions = Formatting.Actions[formatType];
+    for (var i = 0; i < actions.length; i++) {
+      var action = actions[i];
+      for (var j = 0; j < action.shortcuts.length; j++) {
+        this.editor.shortcutsManager.register(
+            action.shortcuts[j], this.handleKeyboardShortcut.bind(this));
+      }
+    }
+  }
+};
+
+
+/**
+ * Creates extra fields for the action.
+ * @param  {Object} action Action to create the button for.
+ * @return {HTMLElement} div contianer containing extra fields.
+ */
+Formatting.prototype.createExtraFields = function(action) {
+  var fields = [];
+  if (!action.attrs) {
+    return fields;
+  }
+
+  for (var key in action.attrs) {
+    var attr = action.attrs[key];
+    var field = new TextField({
+      placeholder: attr.placeholder,
+      required: attr.required,
+      name: key
+    });
+    field.addEventListener(
+        'keyup', this.handleInlineInputFieldKeyUp.bind(this));
+    fields.push(field);
+  }
+
+  return fields;
+};
+
+
+/**
+ * Applies a format with attributes from the active button and fields.
+ */
+Formatting.prototype.applyFormatWithAttrs = function(button) {
+  var activeFormatter = button.data.value;
+  var attrs = {};
+  var fields = button.fields;
+  for (var i = 0; i < fields.length; i++) {
+    attrs[fields[i].name] = fields[i].value;
+  }
+  this.handleInlineFormatting(activeFormatter, attrs);
+};
+
+
+/**
+ * Handles clicking enter in the attributes fields to apply the format.
+ * @param  {Event} event Keyboard event.
+ */
+Formatting.prototype.handleInlineInputFieldKeyUp = function(event) {
+  // Enter.
+  if (event.keyCode === 13) {
+    this.applyFormatWithAttrs(event.detail.target.parentButton);
+  }
+};
+
+
+/**
+ * Checks if this is a selection change due to change of formatting.
+ * @return {boolean}
+ * @private
+ */
+Formatting.prototype.didSelectionActuallyChanged_ = function() {
+  var selection = Selection.getInstance();
+  if (this.lastSelection_ &&
+      this.lastSelection_.start.component === selection.start.component &&
+      this.lastSelection_.end.component === selection.end.component &&
+      this.lastSelection_.start.offset === selection.start.offset &&
+      this.lastSelection_.end.offset === selection.end.offset) {
+    return false;
+  }
+
+  this.lastSelection_ = {
+    start: {
+      component: selection.start.component,
+      offset: selection.start.offset
+    },
+    end: {
+      component: selection.end.component,
+      offset: selection.end.offset
+    }
+  };
+  return true;
+};
+
+
+/**
+ * Handles changing in selection or cursor.
+ */
+Formatting.prototype.handleSelectionChangedEvent = function() {
+  if (!this.didSelectionActuallyChanged_()) {
+    return;
+  }
+  var wSelection = window.getSelection();
+  var selection = Selection.getInstance();
+  var startComp = selection.getComponentAtStart();
+  var endComp = selection.getComponentAtEnd();
+
+  this.blockToolbar.setVisible(false);
+  this.inlineToolbar.setVisible(false);
+
+  if (wSelection.isCollapsed) {
+    if (startComp instanceof Paragraph &&
+        Formatting.BLOCK_ENABLED_ON.indexOf(startComp.paragraphType) !== -1) {
+      // If there's no selection, show the block toolbar.
+      this.blockToolbar.setPositionToStartTopOf(startComp.dom);
+      this.blockToolbar.setVisible(true);
+    }
+    this.reloadBlockToolbarStatus();
+  } else if (startComp instanceof Paragraph &&
+        // Don't show the inline toolbar when multiple paragraphs are selected.
+        startComp === endComp) {
+    // Otherwise, show the inline toolbar.
+    setTimeout(function(){
+      var wSelection = window.getSelection();
+      if (wSelection.isCollapsed) {
+        return;
+      }
+      this.inlineToolbar.setPositionTopOfSelection();
+      this.inlineToolbar.setVisible(true);
+      this.reloadInlineToolbarStatus();
+    }.bind(this), 150);
+  }
+};
+
+
+/**
+ * Reloads the status of the block toolbar and selects the active action.
+ */
+Formatting.prototype.reloadBlockToolbarStatus = function() {
+  var selection = this.editor.article.selection;
+  var paragraph = selection.getComponentAtStart();
+
+  var button = this.blockToolbar.getButtonByName(paragraph.paragraphType);
+  this.blockToolbar.setActiveButton(button);
+};
+
+
+/**
+ * Reloads the status of the inline toolbar and selects the active action.
+ */
+Formatting.prototype.reloadInlineToolbarStatus = function() {
+  var selection = this.editor.article.selection;
+  var paragraph = selection.getComponentAtStart();
+  var formatter = paragraph.getSelectedFormatter(selection);
+  var activeAction = null;
+  var attrs = {};
+  var button = null;
+  if (formatter) {
+    activeAction = this.getFormatterForValue(formatter.type);
+    attrs = formatter.attrs;
+    button = this.inlineToolbar.getButtonByName(formatter.type);
+  }
+
+  this.inlineToolbar.resetFields();
+  for (var key in attrs) {
+    var field = button.getFieldByName(key);
+    field.setValue(attrs[key]);
+  }
+  this.inlineToolbar.setActiveButton(button);
+};
+
+
+/**
+ * Handles block formatter button clicked.
+ * @param  {Event} event Click event.
+ */
+Formatting.prototype.handleBlockFormatterClicked = function(event) {
+  var formatter = event.detail.target.data;
+  this.handleBlockFormatting(formatter.value);
+  this.reloadBlockToolbarStatus();
+  event.preventDefault();
+  event.stopPropagation();
+};
+
+
+/**
+ * Creates the actual operations needed to execute block formatting.
+ * @param  {string} Formatter to format the paragraph with.
+ */
+Formatting.prototype.handleBlockFormatting = function(clickedFormatter) {
+  var selection = this.editor.article.selection;
+  var paragraphs = selection.getSelectedComponents();
+  var ops = [];
+
+  var section = selection.getSectionAtStart();
+  var prevCursorOffset = selection.start.offset;
+  var prevCompIndex = selection.getComponentAtStart().getIndexInSection();
+  for (var i = 0; i < paragraphs.length; i++) {
+    var toType = clickedFormatter;
+    if (paragraphs[i].paragraphType === clickedFormatter) {
+      toType = Paragraph.Types.Paragraph;
+    }
+
+    var index = paragraphs[i].getIndexInSection() + i;
+    // Step 1: deleteComponent to remove current Paragraph.
+    Utils.arrays.extend(ops, paragraphs[i].getDeleteOps(
+        null, null, true));
+    // Step 2: insertComponent to Insert a new Paragraph in its place with the
+    // new paragraph type. Make sure to keep the name of the paragraph.
+    paragraphs[i].paragraphType = toType;
+    Utils.arrays.extend(ops, paragraphs[i].getInsertOps(index));
+  }
+
+  // Execute the transaction.
+  this.editor.article.transaction(ops);
+
+  // Tell listeners that there was a change in the editor.
+  this.editor.dispatchEvent(new Event('change'));
+
+  selection.setCursor({
+    offset: prevCursorOffset,
+    component: section.components[prevCompIndex]
+  });
+};
+
+
+/**
+ * Applies an inline formatter to a paragraph.
+ * @param  {Paragraph} paragraph A paragraph object to apply to format to.
+ * @param  {Selection} selection The current selection to apply format to.
+ * @param  {Object} format Format object describing the format.
+ * @return {Array.<Object>} A list of operations describing the change.
+ */
+Formatting.prototype.format = function(paragraph, selection, format) {
+  var ops = [], newDo, newUndo, newOp;
+
+  var tempOps = paragraph.getUpdateOps(
+      {formats: []}, selection.start.offset,
+      selection.end.offset - selection.start.offset);
+  var defaultDo = tempOps[0].do;
+
+  // See the range already formatted in a similar type.
+  var existingFormats = paragraph.getFormattedRanges(format, true);
+  if (existingFormats && existingFormats.length) {
+
+    for (var i = 0; i < existingFormats.length; i++) {
+      var existingFormat = existingFormats[i];
+      // If attrs were passed with the format just update the attributes.
+      if (format.attrs) {
+        newDo = Utils.clone(defaultDo);
+        var doFormat = Utils.clone(existingFormat);
+        doFormat.attrs = format.attrs;
+        newDo.formats.push(doFormat);
+
+        newUndo = Utils.clone(defaultDo);
+        newUndo.formats.push(Utils.clone(existingFormat));
+      }
+
+      // If the format is re-applied to the same range remove the format.
+      else if (format.to === existingFormat.to &&
+          format.from === existingFormat.from) {
+        newDo = Utils.clone(defaultDo);
+        newDo.formats.push(Utils.clone(format));
+        newUndo = newDo;
+      } else if (format.to === existingFormat.to) {
+        newDo = Utils.clone(defaultDo);
+        newDo.formats.push(format);
+        newUndo = newDo;
+      } else if (format.from === existingFormat.from) {
+        newDo = Utils.clone(defaultDo);
+        newDo.formats.push(format);
+        newUndo = newDo;
+      }
+      // If the selected range is already formatted and is in the middle split
+      // the old format to unformat the selected range.
+      else if (format.to < existingFormat.to &&
+               format.from > existingFormat.from) {
+
+        newDo = Utils.clone(defaultDo);
+        newDo.formats.push(existingFormat);
+        newDo.formats.push({
+          type: existingFormat.type,
+          from: existingFormat.from,
+          to: format.from,
+          attrs: format.attrs
+        });
+        newDo.formats.push({
+          type: existingFormat.type,
+          from: format.to,
+          to: existingFormat.to,
+          attrs: format.attrs
+        });
+
+        newUndo = Utils.clone(newDo);
+        newUndo.formats.reverse();
+      } else {
+        newDo = Utils.clone(defaultDo);
+        newDo.formats.push(existingFormat);
+        newDo.formats.push({
+          type: existingFormat.type,
+          from: Math.min(existingFormat.from, format.from),
+          to: Math.max(existingFormat.to, format.to)
+        });
+
+        newUndo = Utils.clone(newDo);
+        newUndo.formats.reverse();
+      }
+    }
+  } else {
+    // Clear all formats touching the range and apply the new format.
+    var unformatRanges = paragraph.getFormatsForRange(format.from, format.to);
+    newDo = Utils.clone(defaultDo);
+    Utils.arrays.extend(newDo.formats, unformatRanges);
+    // Apply the requested format.
+    newDo.formats.push(format);
+
+    newUndo = Utils.clone(newDo);
+    // Remove attrs from the format in Undo to signal a non-update operation
+    // e.g. Remove this formatting.
+    delete newUndo.formats[newUndo.formats.length - 1].attrs;
+    newUndo.formats.reverse();
+  }
+
+  newOp = {
+    do: newDo,
+    undo: newUndo
+  };
+  ops.push(newOp);
+
+  return ops;
+};
+
+
+/**
+ * Handles inline formatter buttons clicks.
+ * @param  {Event} event Click event.
+ */
+Formatting.prototype.handleInlineFormatterClicked = function(event) {
+  var action = event.detail.target.data;
+  var clickedFormatter = action.value;
+  if (!action.attrs) {
+    this.handleInlineFormatting(clickedFormatter);
+    this.reloadInlineToolbarStatus();
+  } else {
+    var selection = this.editor.article.selection;
+    var paragraph = selection.getComponentAtStart();
+    var activeAction = paragraph.getSelectedFormatter(selection);
+
+    // If the formatter is already applied, remove the formatting.
+    if (activeAction && clickedFormatter === activeAction.type) {
+      this.handleInlineFormatting(clickedFormatter);
+      this.reloadInlineToolbarStatus();
+    } else {
+      this.inlineToolbar.setActiveButton(event.detail.target);
+    }
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+};
+
+
+/**
+ * Creates the actual operations needed to execute inline formatting.
+ * @param  {string} clickedFormatter formatter value string.
+ * @param {Array.<Object>} optAttrs Attributes to add to the formatting.
+ */
+Formatting.prototype.handleInlineFormatting = function(
+    clickedFormatter, optAttrs) {
+  var selection = this.editor.article.selection;
+  var currentParagraph = selection.getComponentAtStart();
+  var format = {
+    type: clickedFormatter,
+    from: selection.start.offset,
+    to: selection.end.offset,
+    attrs: optAttrs
+  };
+
+  // If there's no selection no need to format.
+  if (selection.end.offset - selection.start.offset === 0) {
+    return;
+  }
+
+  var ops = this.format(currentParagraph, selection, format);
+  this.editor.article.transaction(ops);
+
+  // Tell listeners that there was a change in the editor.
+  this.editor.dispatchEvent(new Event('change'));
+};
+
+
+/**
+ * Handles keyboard shortcut event.
+ * @param  {Event} event Keyboard event.
+ */
+Formatting.prototype.handleKeyboardShortcut = function(event) {
+  var shortcutId = this.editor.shortcutsManager.getShortcutId(event);
+
+  var inlineFormatter = this.getInlineFormatterForShortcut(shortcutId);
+  if (inlineFormatter) {
+    this.handleInlineFormatting(inlineFormatter.value);
+    return false;
+  }
+
+  var blockFormatter = this.getBlockFormatterForShortcut(shortcutId);
+  if (blockFormatter) {
+    this.handleBlockFormatting(blockFormatter.value);
+    return false;
+  }
+
+  return true;
+};
+
+
+/**
+ * Returns the matched inline formatter for the shortcut.
+ * @param  {string} shortcutId Shortcut ID to find the formatter for.
+ * @return {Object|null} Inline formatter for the shortcut.
+ */
+Formatting.prototype.getInlineFormatterForShortcut = function(shortcutId) {
+  var inlineFormatters = Formatting.Actions.Inline;
+  for (var i = 0; i < inlineFormatters.length; i++) {
+    if (inlineFormatters[i].shortcuts.indexOf(shortcutId) !== -1) {
+      return inlineFormatters[i];
+    }
+  }
+  return null;
+};
+
+
+/**
+ * Returns the matched block formatter for the shortcut.
+ * @param  {string} shortcutId Shortcut ID to find the formatter for.
+ * @return {Object|null} Block formatter for the shortcut.
+ */
+Formatting.prototype.getBlockFormatterForShortcut = function(shortcutId) {
+  var blockFormatters = Formatting.Actions.Block;
+  for (var i = 0; i < blockFormatters.length; i++) {
+    if (blockFormatters[i].shortcuts.indexOf(shortcutId) !== -1) {
+      return blockFormatters[i];
+    }
+  }
+  return null;
+};
+
+
+/**
+ * Returns the action with the specified value;
+ * @param  {string} value The value to return action for.
+ * @return {Object} Action formatter object.
+ */
+Formatting.prototype.getFormatterForValue = function(value) {
+  var blockFormatters = Formatting.Actions.Block;
+  for (var i = 0; i < blockFormatters.length; i++) {
+    if (blockFormatters[i].value === value) {
+      return blockFormatters[i];
+    }
+  }
+
+  var inlineFormatters = Formatting.Actions.Inline;
+  for (i = 0; i < inlineFormatters.length; i++) {
+    if (inlineFormatters[i].value === value) {
+      return inlineFormatters[i];
+    }
+  }
+  return null;
+};
+
+
+/**
+ * Returns the action with the specified tag name;
+ * @param  {string} tagName Tag name to find a matched action.
+ * @return {Object} Action formatter object.
+ */
+Formatting.getActionForTagName = function(tagName) {
+  tagName = tagName && tagName.toLowerCase();
+  var inlineFormatters = Formatting.Actions.Inline;
+  for (var i = 0; i < inlineFormatters.length; i++) {
+    if (inlineFormatters[i].tagNames.indexOf(tagName) !== -1) {
+      return inlineFormatters[i];
+    }
+  }
+  return null;
+};
+
+
+/**
+ * Returns a formats array that represents the inline formats for the node.
+ * @param  {Element} node HTML Element to return the formats for.
+ * @return {Array.<Object>} Formats array.
+ */
+Formatting.generateFormatsForNode = function(node) {
+  var formats = [];
+  var offset = 0;
+  var children = node.childNodes;
+  for (var i = 0; i < children.length; i++) {
+    var inlineEl = children[i];
+    var action = Formatting.getActionForTagName(inlineEl.tagName);
+    if (action) {
+      var attrs = {};
+      for (var attr in action.attrs) {
+        attrs[attr] = inlineEl.getAttribute(attr);
+      }
+      formats.push({
+        type: action.value,
+        from: offset,
+        to: offset + Utils.getTextFromElement(inlineEl).length,
+        attrs: attrs
+      });
+    }
+    offset += inlineEl.textContent.length;
+  }
+
+  return formats;
+};
+
+},{"../i18n":18,"../paragraph":25,"../selection":27,"../toolbars/button":28,"../toolbars/textField":29,"../utils":31}],6:[function(require,module,exports){
+'use strict';
+
 var Errors = require('../errors');
 
 /**
@@ -2246,7 +3031,7 @@ AbstractEmbedProvider.prototype.getUrlsRegex = function() {
       'AbstractEmbedProvider need to implement getUrlsRegexStr');
 };
 
-},{"../errors":4}],6:[function(require,module,exports){
+},{"../errors":4}],7:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -2332,7 +3117,7 @@ Attachment.prototype.setAttributes = function(attrs) {
   }
 };
 
-},{"../selection":29,"../utils":33}],7:[function(require,module,exports){
+},{"../selection":27,"../utils":31}],8:[function(require,module,exports){
 'use strict';
 
 var AbstractEmbedProvider = require('./abstractEmbedProvider');
@@ -2539,7 +3324,7 @@ CarbonEmbedProvider.prototype.getOEmbedBaseForUrl_ = function(url) {
   return null;
 };
 
-},{"../utils":33,"./abstractEmbedProvider":5}],8:[function(require,module,exports){
+},{"../utils":31,"./abstractEmbedProvider":6}],9:[function(require,module,exports){
 'use strict';
 
 var Errors = require('../errors');
@@ -2600,7 +3385,7 @@ ComponentFactory.prototype.onDestroy = function () {
   this.regexToFactories = {};
 };
 
-},{"../errors":4}],9:[function(require,module,exports){
+},{"../errors":4}],10:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -3272,7 +4057,7 @@ EmbeddedComponent.prototype.getLength = function () {
   return 1;
 };
 
-},{"../component":2,"../i18n":20,"../loader":25,"../paragraph":27,"../utils":33}],10:[function(require,module,exports){
+},{"../component":2,"../i18n":18,"../loader":23,"../paragraph":25,"../utils":31}],11:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -3456,7 +4241,7 @@ EmbeddingExtension.prototype.handleRegexMatch = function(
   opsCallback(ops);
 };
 
-},{"../errors":4,"../i18n":20,"../loader":25,"../paragraph":27,"../toolbars/button":30,"../utils":33}],11:[function(require,module,exports){
+},{"../errors":4,"../i18n":18,"../loader":23,"../paragraph":25,"../toolbars/button":28,"../utils":31}],12:[function(require,module,exports){
 'use strict';
 
 var AbstractEmbedProvider = require('./abstractEmbedProvider');
@@ -3550,783 +4335,7 @@ EmbedlyProvider.prototype.getUrlsRegex = function() {
   return EmbedlyProvider.SUPPORTED_URLS_REGEX_STRING;
 };
 
-},{"../utils":33,"./abstractEmbedProvider":5}],12:[function(require,module,exports){
-'use strict';
-
-var Paragraph = require('../paragraph');
-var Selection = require('../selection');
-var Utils = require('../utils');
-var Button = require('../toolbars/button');
-var TextField = require('../toolbars/textField');
-var I18n = require('../i18n');
-
-
-/**
- * Editor formatting logic is an extension to the editor.
- * @param {Object} optParams Optional params to initialize the Formatting object.
- * Default:
- *   {
- *     enableInline: true,
- *     enableBlock: true
- *   }
- */
-var Formatting = function(optParams) {
-
-  // Override default params with passed ones if any.
-  var params = Utils.extend({
-    // TODO: Use these configurations to disable/enable toolbars.
-    enableInline: true,
-    enableBlock: true
-  }, optParams);
-
-  /**
-   * Whether inline formatting toolbar is enabled.
-   * @type {boolean}
-   */
-  this.enableInline = params.enableInline;
-
-  /**
-   * Whether inline formatting toolbar is enabled.
-   * @type {boolean}
-   */
-  this.enableBlock = params.enableBlock;
-
-  /**
-   * Editor reference.
-   * @type {Editor}
-   */
-  this.editor = null;
-
-};
-module.exports = Formatting;
-
-
-/**
- * Extension class name.
- * @type {string}
- */
-Formatting.CLASS_NAME = 'Formatting';
-
-
-/**
- * Active button class name.
- * @type {string}
- */
-Formatting.ACTIVE_ACTION_CLASS = 'active';
-
-
-/**
- * Types of formatting.
- * @enum {string}
- */
-Formatting.Types = {
-  BLOCK: 'block',
-  INLINE: 'inline'
-};
-
-
-/**
- * Enable block formatting toolbar on these types of paragraphs.
- * @type {Array.<String>}
- */
-Formatting.BLOCK_ENABLED_ON = [
-    Paragraph.Types.Paragraph,
-    Paragraph.Types.MainHeader,
-    Paragraph.Types.SecondaryHeader,
-    Paragraph.Types.ThirdHeader,
-    Paragraph.Types.Quote,
-    Paragraph.Types.Code
-];
-
-
-/**
- * Actions allowed on the toolbars.
- * @type {Object}
- */
-Formatting.Actions = {
-
-  // Block formatting.
-  // TODO: Implement Ordered and Unordered lists.
-  Block: [{
-    label: 'h1',
-    value: Paragraph.Types.MainHeader,
-    shortcuts: ['alt+cmd+1', 'alt+ctrl+1']
-  }, {
-    label: 'h2',
-    value: Paragraph.Types.SecondaryHeader,
-    shortcuts: ['alt+cmd+2', 'alt+ctrl+2']
-  }, {
-    label: 'h3',
-    value: Paragraph.Types.ThirdHeader,
-    shortcuts: ['alt+cmd+3', 'alt+ctrl+3']
-  }, {
-    label: '”',
-    value: Paragraph.Types.Quote,
-    shortcuts: ['alt+cmd+4', 'alt+ctrl+4']
-  }, {
-    label: '{}',
-    value: Paragraph.Types.Code,
-    shortcuts: ['alt+cmd+5', 'alt+ctrl+5']
-  }],
-
-  Inline: [{
-    label: 'B',
-    value: 'strong',
-    tagNames: ['strong', 'b'],
-    shortcuts: ['ctrl+b', 'cmd+b']
-  }, {
-    label: 'I',
-    value: 'em',
-    tagNames: ['em', 'i'],
-    shortcuts: ['ctrl+i', 'cmd+i']
-  }, {
-    label: 'U',
-    value: 'u',
-    tagNames: ['u'],
-    shortcuts: ['ctrl+u', 'cmd+u']
-  }, {
-    label: 'S',
-    value: 's',
-    tagNames: ['strike', 's'],
-    shortcuts: ['ctrl+s', 'cmd+s']
-  }, {
-    label: 'a',
-    value: 'a',
-    attrs: {
-      href: {
-        required: true,
-        placeholder: 'What is the URL?'
-      }
-    },
-    tagNames: ['a'],
-    shortcuts: ['ctrl+k', 'cmd+k']
-  }]
-};
-
-
-/**
- * Name of the block toolbar.
- * @type {string}
- */
-Formatting.BLOCK_TOOLBAR_NAME = 'block-toolbar';
-
-
-/**
- * Name of the inline toolbar.
- * @type {string}
- */
-Formatting.INLINE_TOOLBAR_NAME = 'inline-toolbar';
-
-
-/**
- * Initializes the formatting extensions.
- * @param  {Editor} editor Editor instance this installed on.
- */
-Formatting.onInstall = function(editor) {
-  // Ugly hack because we can't load I18n strings on load time.
-  // TODO(mkhatib): Figure out a better way to handle this.
-  var a = Formatting.getActionForTagName('a');
-  a.attrs.href.placeholder = I18n.get('placeholder.href');
-
-  var formattingExtension = new Formatting();
-  formattingExtension.init(editor);
-};
-
-
-/**
- * Call to destroy instance and cleanup dom and event listeners.
- */
-Formatting.onDestroy = function() {
-  // pass
-};
-
-
-/**
- * Initializes the formatting extension.
- * @param  {Editor} editor The parent editor for the extension.
- */
-Formatting.prototype.init = function(editor) {
-  this.editor = editor;
-  this.blockToolbar = editor.getToolbar(Formatting.BLOCK_TOOLBAR_NAME);
-  this.inlineToolbar = editor.getToolbar(Formatting.INLINE_TOOLBAR_NAME);
-
-  // Inline toolbar used for formatting inline elements (bold, italic...).
-  this.initInlineToolbarButtons();
-
-  // Block toolbar used for formatting block elements (h1, h2, pre...).
-  this.initBlockToolbarButtons();
-
-  // Register keyboard shortcuts to handle formatting.
-  this.registerFormattingShortcuts_();
-
-  // Initializes event listener to update toolbars position and status
-  // when selection or cursor change.
-  this.editor.article.selection.addEventListener(
-      Selection.Events.SELECTION_CHANGED,
-      this.handleSelectionChangedEvent.bind(this));
-};
-
-
-/**
- * Creates inline formatting toolbar.
- * @return {HTMLElement} Toolbar Element.
- */
-Formatting.prototype.initInlineToolbarButtons = function() {
-  var actions = Formatting.Actions.Inline;
-  for (var i = 0; i < actions.length; i++) {
-    var fields = this.createExtraFields(actions[i]);
-    var button = new Button({
-      name: actions[i].value,
-      label: actions[i].label,
-      data: actions[i],
-      fields: fields || []
-    });
-    button.addEventListener(
-        'click', this.handleInlineFormatterClicked.bind(this));
-    this.inlineToolbar.addButton(button);
-  }
-};
-
-
-/**
- * Creates block formatting toolbar.
- */
-Formatting.prototype.initBlockToolbarButtons = function() {
-  var actions = Formatting.Actions.Block;
-  for (var i = 0; i < actions.length; i++) {
-    var button = new Button({
-      name: actions[i].value,
-      label: actions[i].label,
-      data: actions[i]
-    });
-    button.addEventListener(
-        'click', this.handleBlockFormatterClicked.bind(this));
-    this.blockToolbar.addButton(button);
-  }
-};
-
-
-/**
- * Registers shortcuts to handle formatting.
- */
-Formatting.prototype.registerFormattingShortcuts_ = function () {
-  for (var formatType in Formatting.Actions) {
-    var actions = Formatting.Actions[formatType];
-    for (var i = 0; i < actions.length; i++) {
-      var action = actions[i];
-      for (var j = 0; j < action.shortcuts.length; j++) {
-        this.editor.shortcutsManager.register(
-            action.shortcuts[j], this.handleKeyboardShortcut.bind(this));
-      }
-    }
-  }
-};
-
-
-/**
- * Creates extra fields for the action.
- * @param  {Object} action Action to create the button for.
- * @return {HTMLElement} div contianer containing extra fields.
- */
-Formatting.prototype.createExtraFields = function(action) {
-  var fields = [];
-  if (!action.attrs) {
-    return fields;
-  }
-
-  for (var key in action.attrs) {
-    var attr = action.attrs[key];
-    var field = new TextField({
-      placeholder: attr.placeholder,
-      required: attr.required,
-      name: key
-    });
-    field.addEventListener(
-        'keyup', this.handleInlineInputFieldKeyUp.bind(this));
-    fields.push(field);
-  }
-
-  return fields;
-};
-
-
-/**
- * Applies a format with attributes from the active button and fields.
- */
-Formatting.prototype.applyFormatWithAttrs = function(button) {
-  var activeFormatter = button.data.value;
-  var attrs = {};
-  var fields = button.fields;
-  for (var i = 0; i < fields.length; i++) {
-    attrs[fields[i].name] = fields[i].value;
-  }
-  this.handleInlineFormatting(activeFormatter, attrs);
-};
-
-
-/**
- * Handles clicking enter in the attributes fields to apply the format.
- * @param  {Event} event Keyboard event.
- */
-Formatting.prototype.handleInlineInputFieldKeyUp = function(event) {
-  // Enter.
-  if (event.keyCode === 13) {
-    this.applyFormatWithAttrs(event.detail.target.parentButton);
-  }
-};
-
-
-/**
- * Checks if this is a selection change due to change of formatting.
- * @return {boolean}
- * @private
- */
-Formatting.prototype.didSelectionActuallyChanged_ = function() {
-  var selection = Selection.getInstance();
-  if (this.lastSelection_ &&
-      this.lastSelection_.start.component === selection.start.component &&
-      this.lastSelection_.end.component === selection.end.component &&
-      this.lastSelection_.start.offset === selection.start.offset &&
-      this.lastSelection_.end.offset === selection.end.offset) {
-    return false;
-  }
-
-  this.lastSelection_ = {
-    start: {
-      component: selection.start.component,
-      offset: selection.start.offset
-    },
-    end: {
-      component: selection.end.component,
-      offset: selection.end.offset
-    }
-  };
-  return true;
-};
-
-
-/**
- * Handles changing in selection or cursor.
- */
-Formatting.prototype.handleSelectionChangedEvent = function() {
-  if (!this.didSelectionActuallyChanged_()) {
-    return;
-  }
-  var wSelection = window.getSelection();
-  var selection = Selection.getInstance();
-  var startComp = selection.getComponentAtStart();
-  var endComp = selection.getComponentAtEnd();
-
-  this.blockToolbar.setVisible(false);
-  this.inlineToolbar.setVisible(false);
-
-  if (wSelection.isCollapsed) {
-    if (startComp instanceof Paragraph &&
-        Formatting.BLOCK_ENABLED_ON.indexOf(startComp.paragraphType) !== -1) {
-      // If there's no selection, show the block toolbar.
-      this.blockToolbar.setPositionToStartTopOf(startComp.dom);
-      this.blockToolbar.setVisible(true);
-    }
-    this.reloadBlockToolbarStatus();
-  } else if (startComp instanceof Paragraph &&
-        // Don't show the inline toolbar when multiple paragraphs are selected.
-        startComp === endComp) {
-    // Otherwise, show the inline toolbar.
-    setTimeout(function(){
-      var wSelection = window.getSelection();
-      if (wSelection.isCollapsed) {
-        return;
-      }
-      this.inlineToolbar.setPositionTopOfSelection();
-      this.inlineToolbar.setVisible(true);
-      this.reloadInlineToolbarStatus();
-    }.bind(this), 150);
-  }
-};
-
-
-/**
- * Reloads the status of the block toolbar and selects the active action.
- */
-Formatting.prototype.reloadBlockToolbarStatus = function() {
-  var selection = this.editor.article.selection;
-  var paragraph = selection.getComponentAtStart();
-
-  var button = this.blockToolbar.getButtonByName(paragraph.paragraphType);
-  this.blockToolbar.setActiveButton(button);
-};
-
-
-/**
- * Reloads the status of the inline toolbar and selects the active action.
- */
-Formatting.prototype.reloadInlineToolbarStatus = function() {
-  var selection = this.editor.article.selection;
-  var paragraph = selection.getComponentAtStart();
-  var formatter = paragraph.getSelectedFormatter(selection);
-  var activeAction = null;
-  var attrs = {};
-  var button = null;
-  if (formatter) {
-    activeAction = this.getFormatterForValue(formatter.type);
-    attrs = formatter.attrs;
-    button = this.inlineToolbar.getButtonByName(formatter.type);
-  }
-
-  this.inlineToolbar.resetFields();
-  for (var key in attrs) {
-    var field = button.getFieldByName(key);
-    field.setValue(attrs[key]);
-  }
-  this.inlineToolbar.setActiveButton(button);
-};
-
-
-/**
- * Handles block formatter button clicked.
- * @param  {Event} event Click event.
- */
-Formatting.prototype.handleBlockFormatterClicked = function(event) {
-  var formatter = event.detail.target.data;
-  this.handleBlockFormatting(formatter.value);
-  this.reloadBlockToolbarStatus();
-  event.preventDefault();
-  event.stopPropagation();
-};
-
-
-/**
- * Creates the actual operations needed to execute block formatting.
- * @param  {string} Formatter to format the paragraph with.
- */
-Formatting.prototype.handleBlockFormatting = function(clickedFormatter) {
-  var selection = this.editor.article.selection;
-  var paragraphs = selection.getSelectedComponents();
-  var ops = [];
-
-  var section = selection.getSectionAtStart();
-  var prevCursorOffset = selection.start.offset;
-  var prevCompIndex = selection.getComponentAtStart().getIndexInSection();
-  for (var i = 0; i < paragraphs.length; i++) {
-    var toType = clickedFormatter;
-    if (paragraphs[i].paragraphType === clickedFormatter) {
-      toType = Paragraph.Types.Paragraph;
-    }
-
-    var index = paragraphs[i].getIndexInSection() + i;
-    // Step 1: deleteComponent to remove current Paragraph.
-    Utils.arrays.extend(ops, paragraphs[i].getDeleteOps(
-        null, null, true));
-    // Step 2: insertComponent to Insert a new Paragraph in its place with the
-    // new paragraph type. Make sure to keep the name of the paragraph.
-    paragraphs[i].paragraphType = toType;
-    Utils.arrays.extend(ops, paragraphs[i].getInsertOps(index));
-  }
-
-  // Execute the transaction.
-  this.editor.article.transaction(ops);
-
-  // Tell listeners that there was a change in the editor.
-  this.editor.dispatchEvent(new Event('change'));
-
-  selection.setCursor({
-    offset: prevCursorOffset,
-    component: section.components[prevCompIndex]
-  });
-};
-
-
-/**
- * Applies an inline formatter to a paragraph.
- * @param  {Paragraph} paragraph A paragraph object to apply to format to.
- * @param  {Selection} selection The current selection to apply format to.
- * @param  {Object} format Format object describing the format.
- * @return {Array.<Object>} A list of operations describing the change.
- */
-Formatting.prototype.format = function(paragraph, selection, format) {
-  var ops = [], newDo, newUndo, newOp;
-
-  var tempOps = paragraph.getUpdateOps(
-      {formats: []}, selection.start.offset,
-      selection.end.offset - selection.start.offset);
-  var defaultDo = tempOps[0].do;
-
-  // See the range already formatted in a similar type.
-  var existingFormats = paragraph.getFormattedRanges(format, true);
-  if (existingFormats && existingFormats.length) {
-
-    for (var i = 0; i < existingFormats.length; i++) {
-      var existingFormat = existingFormats[i];
-      // If attrs were passed with the format just update the attributes.
-      if (format.attrs) {
-        newDo = Utils.clone(defaultDo);
-        var doFormat = Utils.clone(existingFormat);
-        doFormat.attrs = format.attrs;
-        newDo.formats.push(doFormat);
-
-        newUndo = Utils.clone(defaultDo);
-        newUndo.formats.push(Utils.clone(existingFormat));
-      }
-
-      // If the format is re-applied to the same range remove the format.
-      else if (format.to === existingFormat.to &&
-          format.from === existingFormat.from) {
-        newDo = Utils.clone(defaultDo);
-        newDo.formats.push(Utils.clone(format));
-        newUndo = newDo;
-      } else if (format.to === existingFormat.to) {
-        newDo = Utils.clone(defaultDo);
-        newDo.formats.push(format);
-        newUndo = newDo;
-      } else if (format.from === existingFormat.from) {
-        newDo = Utils.clone(defaultDo);
-        newDo.formats.push(format);
-        newUndo = newDo;
-      }
-      // If the selected range is already formatted and is in the middle split
-      // the old format to unformat the selected range.
-      else if (format.to < existingFormat.to &&
-               format.from > existingFormat.from) {
-
-        newDo = Utils.clone(defaultDo);
-        newDo.formats.push(existingFormat);
-        newDo.formats.push({
-          type: existingFormat.type,
-          from: existingFormat.from,
-          to: format.from,
-          attrs: format.attrs
-        });
-        newDo.formats.push({
-          type: existingFormat.type,
-          from: format.to,
-          to: existingFormat.to,
-          attrs: format.attrs
-        });
-
-        newUndo = Utils.clone(newDo);
-        newUndo.formats.reverse();
-      } else {
-        newDo = Utils.clone(defaultDo);
-        newDo.formats.push(existingFormat);
-        newDo.formats.push({
-          type: existingFormat.type,
-          from: Math.min(existingFormat.from, format.from),
-          to: Math.max(existingFormat.to, format.to)
-        });
-
-        newUndo = Utils.clone(newDo);
-        newUndo.formats.reverse();
-      }
-    }
-  } else {
-    // Clear all formats touching the range and apply the new format.
-    var unformatRanges = paragraph.getFormatsForRange(format.from, format.to);
-    newDo = Utils.clone(defaultDo);
-    Utils.arrays.extend(newDo.formats, unformatRanges);
-    // Apply the requested format.
-    newDo.formats.push(format);
-
-    newUndo = Utils.clone(newDo);
-    // Remove attrs from the format in Undo to signal a non-update operation
-    // e.g. Remove this formatting.
-    delete newUndo.formats[newUndo.formats.length - 1].attrs;
-    newUndo.formats.reverse();
-  }
-
-  newOp = {
-    do: newDo,
-    undo: newUndo
-  };
-  ops.push(newOp);
-
-  return ops;
-};
-
-
-/**
- * Handles inline formatter buttons clicks.
- * @param  {Event} event Click event.
- */
-Formatting.prototype.handleInlineFormatterClicked = function(event) {
-  var action = event.detail.target.data;
-  var clickedFormatter = action.value;
-  if (!action.attrs) {
-    this.handleInlineFormatting(clickedFormatter);
-    this.reloadInlineToolbarStatus();
-  } else {
-    var selection = this.editor.article.selection;
-    var paragraph = selection.getComponentAtStart();
-    var activeAction = paragraph.getSelectedFormatter(selection);
-
-    // If the formatter is already applied, remove the formatting.
-    if (activeAction && clickedFormatter === activeAction.type) {
-      this.handleInlineFormatting(clickedFormatter);
-      this.reloadInlineToolbarStatus();
-    } else {
-      this.inlineToolbar.setActiveButton(event.detail.target);
-    }
-  }
-
-  event.preventDefault();
-  event.stopPropagation();
-};
-
-
-/**
- * Creates the actual operations needed to execute inline formatting.
- * @param  {string} clickedFormatter formatter value string.
- * @param {Array.<Object>} optAttrs Attributes to add to the formatting.
- */
-Formatting.prototype.handleInlineFormatting = function(
-    clickedFormatter, optAttrs) {
-  var selection = this.editor.article.selection;
-  var currentParagraph = selection.getComponentAtStart();
-  var format = {
-    type: clickedFormatter,
-    from: selection.start.offset,
-    to: selection.end.offset,
-    attrs: optAttrs
-  };
-
-  // If there's no selection no need to format.
-  if (selection.end.offset - selection.start.offset === 0) {
-    return;
-  }
-
-  var ops = this.format(currentParagraph, selection, format);
-  this.editor.article.transaction(ops);
-
-  // Tell listeners that there was a change in the editor.
-  this.editor.dispatchEvent(new Event('change'));
-};
-
-
-/**
- * Handles keyboard shortcut event.
- * @param  {Event} event Keyboard event.
- */
-Formatting.prototype.handleKeyboardShortcut = function(event) {
-  var shortcutId = this.editor.shortcutsManager.getShortcutId(event);
-
-  var inlineFormatter = this.getInlineFormatterForShortcut(shortcutId);
-  if (inlineFormatter) {
-    this.handleInlineFormatting(inlineFormatter.value);
-    return false;
-  }
-
-  var blockFormatter = this.getBlockFormatterForShortcut(shortcutId);
-  if (blockFormatter) {
-    this.handleBlockFormatting(blockFormatter.value);
-    return false;
-  }
-
-  return true;
-};
-
-
-/**
- * Returns the matched inline formatter for the shortcut.
- * @param  {string} shortcutId Shortcut ID to find the formatter for.
- * @return {Object|null} Inline formatter for the shortcut.
- */
-Formatting.prototype.getInlineFormatterForShortcut = function(shortcutId) {
-  var inlineFormatters = Formatting.Actions.Inline;
-  for (var i = 0; i < inlineFormatters.length; i++) {
-    if (inlineFormatters[i].shortcuts.indexOf(shortcutId) !== -1) {
-      return inlineFormatters[i];
-    }
-  }
-  return null;
-};
-
-
-/**
- * Returns the matched block formatter for the shortcut.
- * @param  {string} shortcutId Shortcut ID to find the formatter for.
- * @return {Object|null} Block formatter for the shortcut.
- */
-Formatting.prototype.getBlockFormatterForShortcut = function(shortcutId) {
-  var blockFormatters = Formatting.Actions.Block;
-  for (var i = 0; i < blockFormatters.length; i++) {
-    if (blockFormatters[i].shortcuts.indexOf(shortcutId) !== -1) {
-      return blockFormatters[i];
-    }
-  }
-  return null;
-};
-
-
-/**
- * Returns the action with the specified value;
- * @param  {string} value The value to return action for.
- * @return {Object} Action formatter object.
- */
-Formatting.prototype.getFormatterForValue = function(value) {
-  var blockFormatters = Formatting.Actions.Block;
-  for (var i = 0; i < blockFormatters.length; i++) {
-    if (blockFormatters[i].value === value) {
-      return blockFormatters[i];
-    }
-  }
-
-  var inlineFormatters = Formatting.Actions.Inline;
-  for (i = 0; i < inlineFormatters.length; i++) {
-    if (inlineFormatters[i].value === value) {
-      return inlineFormatters[i];
-    }
-  }
-  return null;
-};
-
-
-/**
- * Returns the action with the specified tag name;
- * @param  {string} tagName Tag name to find a matched action.
- * @return {Object} Action formatter object.
- */
-Formatting.getActionForTagName = function(tagName) {
-  tagName = tagName && tagName.toLowerCase();
-  var inlineFormatters = Formatting.Actions.Inline;
-  for (var i = 0; i < inlineFormatters.length; i++) {
-    if (inlineFormatters[i].tagNames.indexOf(tagName) !== -1) {
-      return inlineFormatters[i];
-    }
-  }
-  return null;
-};
-
-
-/**
- * Returns a formats array that represents the inline formats for the node.
- * @param  {Element} node HTML Element to return the formats for.
- * @return {Array.<Object>} Formats array.
- */
-Formatting.generateFormatsForNode = function(node) {
-  var formats = [];
-  var offset = 0;
-  var children = node.childNodes;
-  for (var i = 0; i < children.length; i++) {
-    var inlineEl = children[i];
-    var action = Formatting.getActionForTagName(inlineEl.tagName);
-    if (action) {
-      var attrs = {};
-      for (var attr in action.attrs) {
-        attrs[attr] = inlineEl.getAttribute(attr);
-      }
-      formats.push({
-        type: action.value,
-        from: offset,
-        to: offset + Utils.getTextFromElement(inlineEl).length,
-        attrs: attrs
-      });
-    }
-    offset += inlineEl.textContent.length;
-  }
-
-  return formats;
-};
-
-},{"../i18n":20,"../paragraph":27,"../selection":29,"../toolbars/button":30,"../toolbars/textField":31,"../utils":33}],13:[function(require,module,exports){
+},{"../utils":31,"./abstractEmbedProvider":6}],13:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -4635,7 +4644,7 @@ GiphyComponent.prototype.getLength = function () {
   return 1;
 };
 
-},{"../component":2,"../i18n":20,"../loader":25,"../utils":33}],14:[function(require,module,exports){
+},{"../component":2,"../i18n":18,"../loader":23,"../utils":31}],14:[function(require,module,exports){
 'use strict';
 
 var Selection = require('../selection');
@@ -4879,7 +4888,7 @@ LayoutingExtension.prototype.handleButtonAdded = function () {
   this.insertButton.setVisible(true);
 };
 
-},{"../figure":19,"../i18n":20,"../layout":23,"../loader":25,"../selection":29,"../toolbars/button":30,"../toolbars/toolbar":32,"../utils":33,"./embeddedComponent":9,"./giphyComponent":13}],15:[function(require,module,exports){
+},{"../figure":17,"../i18n":18,"../layout":21,"../loader":23,"../selection":27,"../toolbars/button":28,"../toolbars/toolbar":30,"../utils":31,"./embeddedComponent":10,"./giphyComponent":13}],15:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -5093,7 +5102,7 @@ SelfieExtension.prototype.handleInsertClicked = function() {
   });
 };
 
-},{"../figure":19,"../i18n":20,"../toolbars/button":30,"../utils":33,"./attachment":6}],16:[function(require,module,exports){
+},{"../figure":17,"../i18n":18,"../toolbars/button":28,"../utils":31,"./attachment":7}],16:[function(require,module,exports){
 'use strict';
 
 
@@ -5233,347 +5242,6 @@ ShortcutsManager.prototype.onDestroy = function() {
 };
 
 },{}],17:[function(require,module,exports){
-'use strict';
-
-var Selection = require('../selection');
-var Toolbar = require('../toolbars/toolbar');
-var Button = require('../toolbars/button');
-
-
-/**
- * Toolbelt extension for the editor.
- *   Adds an extendable toolbar for components to add buttons to.
- */
-var Toolbelt = function () {
-
-  /**
-   * The editor this toolbelt belongs to.
-   * @type {Editor}
-   */
-  this.editor = null;
-
-  /**
-   * The toolbelt toolbar.
-   * @type {Toolbar}
-   */
-  this.toolbar = null;
-
-  /**
-   * The editor's block toolbar.
-   * @type {Toolbar}
-   */
-  this.blockToolbar = null;
-
-  /**
-   * The insert button to show the toolbelt when clicked.
-   * @type {Toolbar}
-   */
-  this.insertButton = new Button({ label: '+' });
-  this.insertButton.setVisible(false);
-  this.insertButton.addEventListener(
-      'click', this.handleInsertClick.bind(this));
-};
-module.exports = Toolbelt;
-
-
-/**
- * Extension class name.
- * @type {string}
- */
-Toolbelt.CLASS_NAME = 'Toolbelt';
-
-
-/**
- * Initializes the toolbelt extensions.
- * @param  {Editor} editor Editor instance this installed on.
- */
-Toolbelt.onInstall = function(editor) {
-  var toolbeltExtension = new Toolbelt();
-  toolbeltExtension.init(editor);
-};
-
-
-/**
- * Call to destroy instance and cleanup dom and event listeners.
- */
-Toolbelt.onDestroy = function() {
-  // pass
-};
-
-
-/**
- * Initiates the toolbelt extension.
- * @param  {Editor} editor The editor to initialize the extension for.
- */
-Toolbelt.prototype.init = function(editor) {
-  this.editor = editor;
-  this.blockToolbar = this.editor.getToolbar(Toolbelt.BLOCK_TOOLBAR_NAME);
-  this.blockToolbar.addButton(this.insertButton);
-
-  // Create a new toolbar for the toolbelt.
-  this.toolbar = new Toolbar({
-    name: Toolbelt.TOOLBELT_TOOLBAR_NAME,
-    classNames: [Toolbelt.TOOLBELT_TOOLBAR_CLASS_NAME],
-    rtl: this.editor.rtl
-  });
-  this.toolbar.addEventListener(
-      'button-added', this.handleButtonAdded.bind(this));
-
-  // Register the toolbelt toolbar with the editor.
-  this.editor.registerToolbar(Toolbelt.TOOLBELT_TOOLBAR_NAME, this.toolbar);
-
-  // Listen to selection changes.
-  this.editor.article.selection.addEventListener(
-      Selection.Events.SELECTION_CHANGED,
-      this.handleSelectionChangedEvent.bind(this));
-};
-
-
-/**
- * Toolbelt toolbar name.
- * @type {string}
- */
-Toolbelt.TOOLBELT_TOOLBAR_NAME = 'toolbelt-toolbar';
-
-
-/**
- * Toolbelt toolbar class name.
- * @type {string}
- */
-Toolbelt.TOOLBELT_TOOLBAR_CLASS_NAME = 'toolbelt-toolbar';
-
-
-/**
- * Block toolbar name.
- * @type {string}
- */
-Toolbelt.BLOCK_TOOLBAR_NAME = 'block-toolbar';
-
-
-/**
- * Handles clicking the insert button to expand the toolbelt.
- */
-Toolbelt.prototype.handleInsertClick = function() {
-  this.toolbar.setPositionToStartBottomOf(this.insertButton.dom);
-  this.toolbar.setVisible(!this.toolbar.isVisible);
-};
-
-
-/**
- * Handles selection change event on the editor to hide the toolbelt.
- */
-Toolbelt.prototype.handleSelectionChangedEvent = function() {
-  this.toolbar.setVisible(false);
-};
-
-
-/**
- * Handles new button added to toolbelt to show the insert button.
- */
-Toolbelt.prototype.handleButtonAdded = function () {
-  this.insertButton.setVisible(true);
-};
-
-},{"../selection":29,"../toolbars/button":30,"../toolbars/toolbar":32}],18:[function(require,module,exports){
-'use strict';
-
-var Button = require('../toolbars/button');
-var Utils = require('../utils');
-var Figure = require('../figure');
-var Attachment = require('./attachment');
-var I18n = require('../i18n');
-
-
-/**
- * An upload button that extends Button to style the upload button.
- * @param {Object=} optParams Optional parameters.
- */
-var UploadButton = function (optParams) {
-  var params = Utils.extend({
-    label: 'Upload',
-    icon: '',
-  }, optParams);
-
-  Button.call(this, params);
-
-  this.dom.classList.add(UploadButton.UPLOAD_CONTAINER_CLASS_NAME);
-
-  /**
-   * Upload button input element.
-   * @type {HTMLElement}
-   */
-  this.uploadButtonDom = document.createElement(UploadButton.TAG_NAME);
-  this.uploadButtonDom.setAttribute('type', 'file');
-  this.uploadButtonDom.setAttribute('name', this.name);
-  this.uploadButtonDom.setAttribute('multiple', true);
-  this.uploadButtonDom.addEventListener('change', this.handleChange.bind(this));
-
-  this.dom.appendChild(this.uploadButtonDom);
-};
-UploadButton.prototype = Object.create(Button.prototype);
-
-
-/**
- * Upload button container class name.
- * @type {string}
- */
-UploadButton.UPLOAD_CONTAINER_CLASS_NAME = 'upload-button';
-
-
-/**
- * Upload button element tag name.
- * @type {string}
- */
-UploadButton.TAG_NAME = 'input';
-
-
-/**
- * Handles file change when selecting a file.
- * @param {Event} event File event containing the selected files.
- */
-UploadButton.prototype.handleChange = function(event) {
-  var eventDetails = { target: this, files: event.target.files };
-  var newEvent = new CustomEvent('change', {detail: eventDetails});
-  this.dispatchEvent(newEvent);
-  event.target.value = '';
-};
-
-
-/**
- * Upload Extension enables upload button on the toolbelt.
- */
-var UploadExtension = function () {
-  /**
-   * The editor this toolbelt belongs to.
-   * @type {Editor}
-   */
-  this.editor = null;
-
-  /**
-   * The toolbelt toolbar.
-   * @type {Toolbar}
-   */
-  this.toolbelt = null;
-};
-module.exports = UploadExtension;
-
-
-/**
- * Extension class name.
- * @type {string}
- */
-UploadExtension.CLASS_NAME = 'UploadExtension';
-
-
-/**
- * Toolbar name for the toolbelt toolbar.
- * @type {string}
- */
-UploadExtension.TOOLBELT_TOOLBAR_NAME = 'toolbelt-toolbar';
-
-
-/**
- * Event name for attachment added.
- * @type {string}
- */
-UploadExtension.ATTACHMENT_ADDED_EVENT_NAME = 'attachment-added';
-
-
-/**
- * Initializes the upload extensions.
- * @param  {Editor} editor Editor instance this installed on.
- */
-UploadExtension.onInstall = function(editor) {
-  var uploadExtension = new UploadExtension();
-  uploadExtension.init(editor);
-};
-
-
-/**
- * Call to destroy instance and cleanup dom and event listeners.
- */
-UploadExtension.onDestroy = function() {
-  // pass
-};
-
-
-/**
- * Initialize the upload button and listener.
- * @param  {Editor} editor The editor to enable the extension on.
- */
-UploadExtension.prototype.init = function(editor) {
-  this.editor = editor;
-  this.toolbelt = this.editor.getToolbar(
-      UploadExtension.TOOLBELT_TOOLBAR_NAME);
-
-  var uploadButton = new UploadButton({
-    label: I18n.get('button.upload'),
-    icon: I18n.get('button.icon.upload')
-  });
-  uploadButton.addEventListener('change', this.handleUpload.bind(this));
-  this.toolbelt.addButton(uploadButton);
-};
-
-
-/**
- * Handles selecting a file.
- * @param  {Event} event Event fired from UploadButton.
- */
-UploadExtension.prototype.handleUpload = function(event) {
-  var that = this;
-  // TODO(mkhatib): Create attachment per supported file.
-  var files = event.detail.files;
-
-  var fileLoaded = function(dataUrl, file) {
-    var selection = that.editor.article.selection;
-    var component = selection.getComponentAtStart();
-
-    // Create a figure with the file Data URL and insert it.
-    var figure = new Figure({src: dataUrl});
-    figure.section = selection.getSectionAtStart();
-    var insertFigureOps = figure.getInsertOps(component.getIndexInSection());
-    that.editor.article.transaction(insertFigureOps);
-    that.editor.dispatchEvent(new Event('change'));
-
-    // Create an attachment to track the figure and insertion operations.
-    var attachment = new Attachment({
-      file: file,
-      figure: selection.getComponentAtStart(),
-      editor: that.editor,
-      insertedOps: insertFigureOps
-    });
-
-    // Dispatch an attachment added event to allow clients to upload the file.
-    var newEvent = new CustomEvent(
-      UploadExtension.ATTACHMENT_ADDED_EVENT_NAME, {
-        detail: { attachment: attachment }
-    });
-    that.editor.dispatchEvent(newEvent);
-  };
-
-  for (var i = 0; i < files.length; i++) {
-    // Read the file as Data URL.
-    this.readFileAsDataUrl_(files[i], fileLoaded);
-  }
-};
-
-
-/**
- * Read file data URL.
- * @param  {File} file File picked by the user.
- * @param  {Function} callback Callback function when the reading is complete.
- */
-UploadExtension.prototype.readFileAsDataUrl_ = function(file, callback) {
-  var reader = new FileReader();
-  reader.onload = (function(f) {
-    return function(e) {
-      callback(e.target.result, f);
-    };
-  }(file));
-  reader.readAsDataURL(file);
-};
-
-},{"../figure":19,"../i18n":20,"../toolbars/button":30,"../utils":33,"./attachment":6}],19:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -5970,7 +5638,7 @@ Figure.prototype.updateCaption = function(caption) {
   this.captionParagraph.setText(caption);
 };
 
-},{"./component":2,"./i18n":20,"./loader":25,"./paragraph":27,"./utils":33}],20:[function(require,module,exports){
+},{"./component":2,"./i18n":18,"./loader":23,"./paragraph":25,"./utils":31}],18:[function(require,module,exports){
 'use strict';
 
 var I18n = {};
@@ -6064,7 +5732,7 @@ I18n.get = function(id, optLocale) {
   return I18n.LANG_STRING_MAP[locale][id];
 };
 
-},{}],21:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 var I18n = require('../i18n');
@@ -6098,7 +5766,7 @@ I18n.set('ar', 'button.layout.right'    , 'يمين');
 I18n.set('ar', 'regex.giphy', '^\\+جيفي\\s(.+[a-zA-Z])$');
 I18n.set('ar', 'regex.selfie', '^\\+(?:نفصور[ة|ه]|سي?لفي)$');
 
-},{"../i18n":20}],22:[function(require,module,exports){
+},{"../i18n":18}],20:[function(require,module,exports){
 'use strict';
 
 var I18n = require('../i18n');
@@ -6147,7 +5815,7 @@ I18n.set('en', 'regex.giphy', '^\\+giphy\\s(.+[a-zA-Z])$');
 I18n.set('en', 'regex.selfie', '^\\+selfie$');
 
 
-},{"../i18n":20}],23:[function(require,module,exports){
+},{"../i18n":18}],21:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -6179,7 +5847,7 @@ var Layout = function(optParams) {
 
   this.type = params.type;
   this.dom.setAttribute('contenteditable', false);
-  this.dom.classList.add('carbon-layout');
+  this.dom.classList.add(Layout.ELEMENT_CLASS_NAME);
   this.dom.classList.add(this.type);
 };
 Layout.prototype = Object.create(Section.prototype);
@@ -6193,6 +5861,11 @@ module.exports = Layout;
 Layout.CLASS_NAME = 'Layout';
 Loader.register(Layout.CLASS_NAME, Layout);
 
+/**
+ * Element class name.
+ * @type {string}
+ */
+Layout.ELEMENT_CLASS_NAME = 'carbon-layout';
 
 /**
  * Unordered Layout component container element tag name.
@@ -6432,7 +6105,7 @@ Layout.prototype.getJSONModel = function() {
   return layout;
 };
 
-},{"./loader":25,"./paragraph":27,"./section":28,"./utils":33}],24:[function(require,module,exports){
+},{"./loader":23,"./paragraph":25,"./section":26,"./utils":31}],22:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -6734,7 +6407,7 @@ List.prototype.getJSONModel = function() {
   return section;
 };
 
-},{"./loader":25,"./paragraph":27,"./section":28,"./utils":33}],25:[function(require,module,exports){
+},{"./loader":23,"./paragraph":25,"./section":26,"./utils":31}],23:[function(require,module,exports){
 'use strict';
 
 var Errors = require('./errors');
@@ -6795,7 +6468,7 @@ var Loader = (function() {
 })();
 module.exports = Loader;
 
-},{"./errors":4}],26:[function(require,module,exports){
+},{"./errors":4}],24:[function(require,module,exports){
 'use strict';
 
 // TODO(mkhatib): Figure out a better way to load translations lazily.
@@ -6838,7 +6511,7 @@ module.exports.SelfieExtension = require('./extensions/selfieExtension');
 
 module.exports.LayoutingExtension = require('./extensions/layoutingExtension');
 
-},{"./article":1,"./editor":3,"./extensions/abstractEmbedProvider":5,"./extensions/carbonEmbedProvider":7,"./extensions/embeddedComponent":9,"./extensions/embeddingExtension":10,"./extensions/embedlyProvider":11,"./extensions/giphyComponent":13,"./extensions/layoutingExtension":14,"./extensions/selfieExtension":15,"./figure":19,"./i18n":20,"./i18n/ar":21,"./i18n/en":22,"./layout":23,"./list":24,"./loader":25,"./paragraph":27,"./section":28,"./selection":29}],27:[function(require,module,exports){
+},{"./article":1,"./editor":3,"./extensions/abstractEmbedProvider":6,"./extensions/carbonEmbedProvider":8,"./extensions/embeddedComponent":10,"./extensions/embeddingExtension":11,"./extensions/embedlyProvider":12,"./extensions/giphyComponent":13,"./extensions/layoutingExtension":14,"./extensions/selfieExtension":15,"./figure":17,"./i18n":18,"./i18n/ar":19,"./i18n/en":20,"./layout":21,"./list":22,"./loader":23,"./paragraph":25,"./section":26,"./selection":27}],25:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -7659,7 +7332,7 @@ Paragraph.prototype.isBlank = function() {
   );
 };
 
-},{"./component":2,"./loader":25,"./utils":33}],28:[function(require,module,exports){
+},{"./component":2,"./loader":23,"./utils":31}],26:[function(require,module,exports){
 'use strict';
 
 var Selection = require('./selection');
@@ -7947,7 +7620,7 @@ Section.prototype.getComponentByName = function(name) {
   }
 };
 
-},{"./component":2,"./loader":25,"./selection":29,"./utils":33}],29:[function(require,module,exports){
+},{"./component":2,"./loader":23,"./selection":27,"./utils":31}],27:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -8496,7 +8169,7 @@ var Selection = (function() {
 })();
 module.exports = Selection;
 
-},{"./utils":33}],30:[function(require,module,exports){
+},{"./utils":31}],28:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -8709,7 +8382,7 @@ Button.prototype.resetFields = function () {
   }
 };
 
-},{"../utils":33}],31:[function(require,module,exports){
+},{"../utils":31}],29:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -8810,7 +8483,7 @@ TextField.prototype.setValue = function (value) {
   this.dom.value = value;
 };
 
-},{"../utils":33}],32:[function(require,module,exports){
+},{"../utils":31}],30:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -9175,7 +8848,7 @@ Toolbar.prototype.resetFields = function () {
   }
 };
 
-},{"../utils":33}],33:[function(require,module,exports){
+},{"../utils":31}],31:[function(require,module,exports){
 'use strict';
 
 var Utils = {};
@@ -9783,5 +9456,5 @@ Utils.CustomEventTarget.prototype.dispatchEvent = function(event) {
 
 })();
 
-},{}]},{},[26])(26)
+},{}]},{},[24])(24)
 });
