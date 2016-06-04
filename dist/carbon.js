@@ -529,7 +529,7 @@ Article.prototype.trim = function() {
   }
 };
 
-},{"./extensions/embeddedComponent":10,"./figure":17,"./layout":21,"./loader":23,"./paragraph":25,"./section":26,"./selection":27,"./utils":31}],2:[function(require,module,exports){
+},{"./extensions/embeddedComponent":11,"./figure":16,"./layout":19,"./loader":21,"./paragraph":23,"./section":24,"./selection":25,"./utils":29}],2:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -842,7 +842,7 @@ Component.prototype.rerender = function () {
   // pass.
 };
 
-},{"./errors":4,"./loader":23,"./selection":27,"./utils":31}],3:[function(require,module,exports){
+},{"./errors":4,"./loader":21,"./selection":25,"./utils":29}],3:[function(require,module,exports){
 'use strict';
 
 var Article = require('./article');
@@ -2179,7 +2179,7 @@ Editor.prototype.handleCut = function() {
   }, 20);
 };
 
-},{"./article":1,"./extensions/FormattingBasicExtension":5,"./extensions/componentFactory":9,"./extensions/shortcutsManager":16,"./figure":17,"./i18n":18,"./layout":21,"./list":22,"./paragraph":25,"./section":26,"./selection":27,"./toolbars/toolbar":30,"./utils":31}],4:[function(require,module,exports){
+},{"./article":1,"./extensions/FormattingBasicExtension":5,"./extensions/componentFactory":8,"./extensions/shortcutsManager":15,"./figure":16,"./i18n":17,"./layout":19,"./list":20,"./paragraph":23,"./section":24,"./selection":25,"./toolbars/toolbar":28,"./utils":29}],4:[function(require,module,exports){
 'use strict';
 
 var Errors = {};
@@ -2993,7 +2993,7 @@ Formatting.generateFormatsForNode = function(node) {
   return formats;
 };
 
-},{"../i18n":18,"../paragraph":25,"../selection":27,"../toolbars/button":28,"../toolbars/textField":29,"../utils":31}],6:[function(require,module,exports){
+},{"../i18n":17,"../paragraph":23,"../selection":25,"../toolbars/button":26,"../toolbars/textField":27,"../utils":29}],6:[function(require,module,exports){
 'use strict';
 
 var Errors = require('../errors');
@@ -3032,92 +3032,6 @@ AbstractEmbedProvider.prototype.getUrlsRegex = function() {
 };
 
 },{"../errors":4}],7:[function(require,module,exports){
-'use strict';
-
-var Utils = require('../utils');
-var Selection = require('../selection');
-
-
-/**
- * Allow for updating attributes in history and in the component for
- * uploading files and media.
- * @param {Object=} optParams Optional Parameters.
- */
-var Attachment = function (optParams) {
-  var params = Utils.extend({
-    file: null,
-    dataUri: null,
-    // TODO(mkhatib): Make this general for any kind of component
-    // (e.g. video, pdf...etc)
-    figure: null,
-    insertedOps: null
-  }, optParams);
-
-  /**
-   * The file that was picked by the user.
-   * @type {File}
-   */
-  this.file = params.file;
-
-  /**
-   * Data URI of the attachment. This might be set when the attachment
-   * came from a non-input file (e.g. webcam).
-   * @type {string}
-   */
-  this.dataUri = params.dataUri;
-
-  /**
-   * Figure inserted for this attachment.
-   * @type {Figure}
-   */
-  this.figure = params.figure;
-
-  /**
-   * Operations used to insert the component.
-   * @type {Array.<Object>}
-   */
-  this.insertedOps = params.insertedOps;
-
-};
-module.exports = Attachment;
-
-
-/**
- * Sets upload progress for the attachment.
- * @param {number} progress Progress for the uploading process.
- */
-Attachment.prototype.setUploadProgress = function(progress) {
-  this.progress = progress;
-
-  // TODO(mkhatib): Update UI indication of the upload progress.
-};
-
-
-/**
- * Sets attributes for the inserted component and updates the insertion
- * operations in history.
- * @param {Object} attrs Attributes to update.
- */
-Attachment.prototype.setAttributes = function(attrs) {
-  // TODO(mkhatib): This is a hack to update previous history operation.
-  // Think of a better way to do this.
-  for (var i = 0; i < this.insertedOps.length; i++) {
-    var newAttrs = Utils.extend(this.insertedOps[i].do.attrs || {}, attrs);
-    this.insertedOps[i].do.attrs = newAttrs;
-  }
-  // Update the figure object attributes to reflect the changes.
-  this.figure.updateAttributes(attrs);
-
-  // If the figure finished uploading and it's still selected,
-  // reselect to show the toolbar.
-  var selection = Selection.getInstance();
-  var selectedComponent = selection.getComponentAtStart();
-  if (selectedComponent === this.figure) {
-    this.figure.select();
-  }
-};
-
-},{"../selection":27,"../utils":31}],8:[function(require,module,exports){
 'use strict';
 
 var AbstractEmbedProvider = require('./abstractEmbedProvider');
@@ -3324,7 +3238,7 @@ CarbonEmbedProvider.prototype.getOEmbedBaseForUrl_ = function(url) {
   return null;
 };
 
-},{"../utils":31,"./abstractEmbedProvider":6}],9:[function(require,module,exports){
+},{"../utils":29,"./abstractEmbedProvider":6}],8:[function(require,module,exports){
 'use strict';
 
 var Errors = require('../errors');
@@ -3385,7 +3299,304 @@ ComponentFactory.prototype.onDestroy = function () {
   this.regexToFactories = {};
 };
 
-},{"../errors":4}],10:[function(require,module,exports){
+},{"../errors":4}],9:[function(require,module,exports){
+'use strict';
+
+var AbstractEmbedProvider = require('./abstractEmbedProvider');
+var Utils = require('../utils');
+
+
+/**
+ * Provides an Embed Provider using Embedly APIs.
+ * @param {Object=} optParams Config params.
+ *   required: apiKey
+ * @constructor
+ */
+var CreoProvider = function (optParams) {
+  var params = Utils.extend({
+    endpoint: 'https://videogamer.prog/ajax/oembed',
+    apiKey: null,
+  }, optParams);
+
+  /**
+   * Embedly oembed endpoint.
+   * @type {string}
+   */
+  this.endpoint = params.endpoint;
+
+  /**
+   * API Key for embedly app.
+   * @type {string}
+   */
+  this.apiKey = params.apiKey;
+
+  AbstractEmbedProvider.call(this, params);
+};
+CreoProvider.prototype = Object.create(AbstractEmbedProvider.prototype);
+module.exports = CreoProvider;
+
+
+/**
+ * Regex string for all URLs embedly provider can handle.
+ * @todo: test these + lock down the exact videogamer urls allowed
+ * @constant
+ */
+CreoProvider.SUPPORTED_URLS_REGEX_STRING = '^((https?://(www\.flickr\.com/photos/.*|flic\.kr/.*|.*imgur\.com/.*|.*dribbble\.com/shots/.*|drbl\.in/.*|giphy\.com/gifs/.*|gph\.is/.*|vid\.me/.*|www\.slideshare\.net/.*/.*|www\.slideshare\.net/mobile/.*/.*|.*\.slideshare\.net/.*/.*|slidesha\.re/.*|www\.kickstarter\.com/projects/.*/.*|linkedin\.com/in/.*|linkedin\.com/pub/.*|.*\.linkedin\.com/in/.*|.*\.linkedin\.com/pub/.*|linkedin\.com/in/.*|linkedin\.com/company/.*|.*\.linkedin\.com/company/.*|www\.sliderocket\.com/.*|sliderocket\.com/.*|app\.sliderocket\.com/.*|portal\.sliderocket\.com/.*|beta-sliderocket\.com/.*|maps\.google\.com/maps\?.*|maps\.google\.com/\?.*|maps\.google\.com/maps/ms\?.*|www\.google\..*/maps/.*|google\..*/maps/.*|tumblr\.com/.*|.*\.tumblr\.com/post/.*|pastebin\.com/.*|storify\.com/.*/.*|prezi\.com/.*/.*|www\.wikipedia\.org/wiki/.*|.*\.wikipedia\.org/wiki/.*|www\.behance\.net/gallery/.*|behance\.net/gallery/.*|jsfiddle\.net/.*|www\.gettyimages\.com/detail/photo/.*|gty\.im/.*|jsbin\.com/.*/.*|jsbin\.com/.*|codepen\.io/.*/pen/.*|codepen\.io/.*/pen/.*|quora\.com/.*/answer/.*|www\.quora\.com/.*/answer/.*|www\.qzzr\.com/quiz/.*|.*amazon\..*/gp/product/.*|.*amazon\..*/.*/dp/.*|.*amazon\..*/dp/.*|.*amazon\..*/o/ASIN/.*|.*amazon\..*/gp/offer-listing/.*|.*amazon\..*/.*/ASIN/.*|.*amazon\..*/gp/product/images/.*|.*amazon\..*/gp/aw/d/.*|www\.amzn\.com/.*|amzn\.com/.*|fiverr\.com/.*/.*|www\.fiverr\.com/.*/.*|.*youtube\.com/watch.*|.*\.youtube\.com/v/.*|youtu\.be/.*|.*\.youtube\.com/user/.*|.*\.youtube\.com/.*#.*/.*|m\.youtube\.com/watch.*|m\.youtube\.com/index.*|.*\.youtube\.com/profile.*|.*\.youtube\.com/view_play_list.*|.*\.youtube\.com/playlist.*|www\.youtube\.com/embed/.*|youtube\.com/gif.*|www\.youtube\.com/gif.*|www\.youtube\.com/attribution_link.*|youtube\.com/attribution_link.*|youtube\.ca/.*|youtube\.jp/.*|youtube\.com\.br/.*|youtube\.co\.uk/.*|youtube\.nl/.*|youtube\.pl/.*|youtube\.es/.*|youtube\.ie/.*|it\.youtube\.com/.*|youtube\.fr/.*|.*twitch\.tv/.*|.*twitch\.tv/.*/b/.*|www\.ustream\.tv/recorded/.*|www\.ustream\.tv/channel/.*|www\.ustream\.tv/.*|ustre\.am/.*|.*\.dailymotion\.com/video/.*|.*\.dailymotion\.com/.*/video/.*|www\.livestream\.com/.*|new\.livestream\.com/.*|coub\.com/view/.*|coub\.com/embed/.*|vine\.co/v/.*|www\.vine\.co/v/.*|www\.vimeo\.com/groups/.*/videos/.*|www\.vimeo\.com/.*|vimeo\.com/groups/.*/videos/.*|vimeo\.com/.*|vimeo\.com/m/#/.*|player\.vimeo\.com/.*|www\.ted\.com/talks/.*\.html.*|www\.ted\.com/talks/lang/.*/.*\.html.*|www\.ted\.com/index\.php/talks/.*\.html.*|www\.ted\.com/index\.php/talks/lang/.*/.*\.html.*|www\.ted\.com/talks/|khanacademy\.org/.*|www\.khanacademy\.org/.*|www\.facebook\.com/video\.php.*|www\.facebook\.com/.*/posts/.*|fb\.me/.*|www\.facebook\.com/.*/videos/.*|fb\.com|plus\.google\.com/.*|www\.google\.com/profiles/.*|google\.com/profiles/.*|soundcloud\.com/.*|soundcloud\.com/.*/.*|soundcloud\.com/.*/sets/.*|soundcloud\.com/groups/.*|snd\.sc/.*))|(https://(vidd\.me/.*|vid\.me/.*|maps\.google\.com/maps\?.*|maps\.google\.com/\?.*|maps\.google\.com/maps/ms\?.*|www\.google\..*/maps/.*|google\..*/maps/.*|storify\.com/.*/.*|medium\.com/.*|medium\.com/.*/.*|quora\.com/.*/answer/.*|www\.quora\.com/.*/answer/.*|www\.qzzr\.com/quiz/.*|.*youtube\.com/watch.*|.*\.youtube\.com/v/.*|youtu\.be/.*|.*\.youtube\.com/playlist.*|www\.youtube\.com/embed/.*|youtube\.com/gif.*|www\.youtube\.com/gif.*|www\.youtube\.com/attribution_link.*|youtube\.com/attribution_link.*|youtube\.ca/.*|youtube\.jp/.*|youtube\.com\.br/.*|youtube\.co\.uk/.*|youtube\.nl/.*|youtube\.pl/.*|youtube\.es/.*|youtube\.ie/.*|it\.youtube\.com/.*|youtube\.fr/.*|coub\.com/view/.*|coub\.com/embed/.*|vine\.co/v/.*|www\.vine\.co/v/.*|gifs\.com/gif/.*|www\.gifs\.com/gif/.*|gifs\.com/.*|www\.gifs\.com/.*|www\.vimeo\.com/.*|vimeo\.com/.*|player\.vimeo\.com/.*|khanacademy\.org/.*|www\.khanacademy\.org/.*|www\.facebook\.com/video\.php.*|www\.facebook\.com/.*/posts/.*|fb\.me/.*|www\.facebook\.com/.*/videos/.*|plus\.google\.com/.*|soundcloud\.com/.*|soundcloud\.com/.*/.*|soundcloud\.com/.*/sets/.*|soundcloud\.com/groups/.*|videogamer\..*/.*)))';
+
+
+/**
+ * Call the proper endpoint for the passed URL and send the response back
+ * by passing it to a callabck.
+ * @param {string} url Url to get the oembed response for.
+ * @param {Function} callback A callback function to call with the result.
+ * @param {Object=} optArgs Optional arguments to pass with the URL.
+ */
+CreoProvider.prototype.getEmbedForUrl = function(
+    url, callback, optArgs) {
+  var endpoint = this.getOEmbedEndpointForUrl(url, optArgs);
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (xhttp.readyState == 4) {
+      var json = JSON.parse(xhttp.responseText);
+      callback(json);
+    }
+  };
+  xhttp.open('GET', endpoint, true);
+  xhttp.send();
+};
+
+
+/**
+ * Returns the URL to call for oembed response.
+ * @param {string} url URL to create the url for.
+ * @param {Object} optArgs Arguments to pass with the URL.
+ * @return {string}
+ */
+CreoProvider.prototype.getOEmbedEndpointForUrl = function(url, optArgs) {
+  var urlParams = Utils.extend({
+    key: this.apiKey,
+    // luxe: 1,
+    url: url
+  }, optArgs);
+  var queryParts = [];
+  for (var name in urlParams) {
+    queryParts.push([name, urlParams[name]].join('='));
+  }
+  return [this.endpoint, queryParts.join('&')].join('?');
+};
+
+
+/**
+ * Returns the regex string this provider want to provide the embed for.
+ * @return {string}
+ */
+CreoProvider.prototype.getUrlsRegex = function() {
+  return CreoProvider.SUPPORTED_URLS_REGEX_STRING;
+};
+
+},{"../utils":29,"./abstractEmbedProvider":6}],10:[function(require,module,exports){
+'use strict';
+
+var Utils = require('../utils');
+var Errors = require('../errors');
+var Loader = require('../loader');
+var Button = require('../toolbars/button');
+var Paragraph = require('../paragraph');
+var I18n = require('../i18n');
+
+/**
+ * EmbedButtonExtension allows embedding different kind of components using
+ * different providers.
+ * @param {Object} optParams Config params.
+ * @constructor
+ */
+var EmbedButtonExtension = function (optParams) {
+  var params = Utils.extend({
+    editor: null,
+    embedProviders: null,
+    ComponentClass: null
+  }, optParams);
+
+  /**
+   * A reference to the editor this extension is enabled in.
+   * @type {Editor}
+   */
+  this.editor = params.editor;
+
+  /**
+   * Maps the different providers with their instances.
+   * @type {Object}
+   */
+  this.embedProviders = params.embedProviders;
+
+  /**
+   * The component class to use for embedding.
+   * @type {Component}
+   */
+  this.ComponentClass = params.ComponentClass;
+};
+module.exports = EmbedButtonExtension;
+
+
+/**
+ * Extension class name.
+ * @type {string}
+ */
+EmbedButtonExtension.CLASS_NAME = 'EmbedButtonExtension';
+
+
+/**
+ * Name of the block toolbar.
+ * @type {string}
+ */
+EmbedButtonExtension.BLOCK_TOOLBAR_NAME = 'block-toolbar';
+
+
+/**
+ * Instantiate an instance of the extension and configure it.
+ * @param  {Editor} editor Instance of the editor installing this extension.
+ * @param  {Object} config Configuration for the extension.
+ * @static
+ */
+EmbedButtonExtension.onInstall = function (editor, config) {
+
+  if (!config.embedProviders || ! config.ComponentClass) {
+    throw Errors.ConfigrationError(
+        'EmbedButtonExtension needs "embedProviders" and "ComponentClass"');
+  }
+
+  var extension = new EmbedButtonExtension({
+    embedProviders: config.embedProviders,
+    ComponentClass: config.ComponentClass,
+    editor: editor
+  });
+
+  // Register the embedProviders with the loader to allow components to
+  // access them. Force this?
+  Loader.register('embedProviders', config.embedProviders, true);
+  extension.init();
+};
+
+
+/**
+ * Registers the different regexes for each provider.
+ */
+EmbedButtonExtension.prototype.init = function() {
+  var self = this;
+
+  // get block toolbar instance
+  this.blockToolbar = this.editor.getToolbar(EmbedButtonExtension.BLOCK_TOOLBAR_NAME);
+
+  // add button to toolbar
+  var insertButton = new Button({ label: '+' });
+  // insertButton.setVisible(false);
+  insertButton.addEventListener('click', this.handleInsertClicked.bind(this));
+
+  this.blockToolbar.addButton(insertButton);
+
+
+  /**
+   * Callback wrapper to allow passing provider for the callback.
+   * @param  {string} provider Provider name.
+   * @return {Function} Regex match handler.
+   */
+  var handleRegexMatchProvider = function(provider) {
+    return function(matchedComponent, opsCallback) {
+      self.handleRegexMatch(matchedComponent, opsCallback, provider);
+    };
+  };
+
+  // Register regexes in each provider.
+  for (var provider in this.embedProviders) {
+    var regexStr = this.embedProviders[provider].getUrlsRegex();
+    this.editor.registerRegex(regexStr, handleRegexMatchProvider(provider));
+  }
+
+  // this.toolbelt = this.editor.getToolbar(
+      // EmbedButtonExtension.TOOLBELT_TOOLBAR_NAME);
+
+  // Add embedding buttons to the toolbelt.
+  // var toolbeltButtons = [{
+  //   label: I18n.get('button.video'),
+  //   icon: I18n.get('button.icon.video'),
+  //   placeholder: I18n.get('placeholder.video')
+  // }, {
+  //   label: I18n.get('button.photo'),
+  //   icon: I18n.get('button.icon.photo'),
+  //   placeholder: I18n.get('placeholder.photo')
+  // }, {
+  //   label: I18n.get('button.post'),
+  //   icon: I18n.get('button.icon.post'),
+  //   placeholder: I18n.get('placeholder.post')
+  // }, {
+  //   label: I18n.get('button.gif'),
+  //   icon: I18n.get('button.icon.gif'),
+  //   placeholder: I18n.get('placeholder.gif')
+  // }, {
+  //   label: I18n.get('button.quiz'),
+  //   icon: I18n.get('button.icon.quiz'),
+  //   placeholder: I18n.get('placeholder.quiz')
+  // }];
+
+  // for (var i = 0; i < toolbeltButtons.length; i++) {
+  //   var insertVideoButton = new Button({
+  //     label: toolbeltButtons[i].label,
+  //     icon: toolbeltButtons[i].icon,
+  //     data: { placeholder: toolbeltButtons[i].placeholder }
+  //   });
+  //   insertVideoButton.addEventListener(
+  //       'click', this.handleInsertClicked.bind(this));
+  //   this.toolbelt.addButton(insertVideoButton);
+  // }
+};
+
+
+EmbedButtonExtension.prototype.handleInsertClicked = function(event) {
+
+  // open dialog
+  console.log('Opening embed dialog...');
+
+  // embed dialog will do insersion
+
+  var button = event.detail.target;
+  var placeholder = button.data.placeholder;
+  var newP = new Paragraph({
+    placeholderText: placeholder,
+    section: this.editor.selection.getSectionAtStart()
+  });
+
+  var index = this.editor.selection.getComponentAtStart().getIndexInSection();
+  this.editor.article.transaction(newP.getInsertOps(index));
+};
+
+
+
+/**
+ * Handles regex match by instantiating a component.
+ * @param {Component} matchedComponent Component that matched registered regex.
+ * @param {Function} opsCallback Callback to send list of operations to exectue.
+ * @param  {string} provider Embed provider name.
+ */
+EmbedButtonExtension.prototype.handleRegexMatch = function(
+    matchedComponent, opsCallback, provider) {
+  var atIndex = matchedComponent.getIndexInSection();
+  var ops = [];
+  var embeddedComponent = new this.ComponentClass({
+    url: matchedComponent.text,
+    provider: provider
+  });
+  embeddedComponent.section = matchedComponent.section;
+
+  // Delete current matched component with its text.
+  Utils.arrays.extend(ops, matchedComponent.getDeleteOps(atIndex));
+
+  // Add the new component created from the text.
+  Utils.arrays.extend(ops, embeddedComponent.getInsertOps(atIndex));
+
+  opsCallback(ops);
+};
+
+},{"../errors":4,"../i18n":17,"../loader":21,"../paragraph":23,"../toolbars/button":26,"../utils":29}],11:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -4057,7 +4268,7 @@ EmbeddedComponent.prototype.getLength = function () {
   return 1;
 };
 
-},{"../component":2,"../i18n":18,"../loader":23,"../paragraph":25,"../utils":31}],11:[function(require,module,exports){
+},{"../component":2,"../i18n":17,"../loader":21,"../paragraph":23,"../utils":29}],12:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -4241,101 +4452,7 @@ EmbeddingExtension.prototype.handleRegexMatch = function(
   opsCallback(ops);
 };
 
-},{"../errors":4,"../i18n":18,"../loader":23,"../paragraph":25,"../toolbars/button":28,"../utils":31}],12:[function(require,module,exports){
-'use strict';
-
-var AbstractEmbedProvider = require('./abstractEmbedProvider');
-var Utils = require('../utils');
-
-
-/**
- * Provides an Embed Provider using Embedly APIs.
- * @param {Object=} optParams Config params.
- *   required: apiKey
- * @constructor
- */
-var EmbedlyProvider = function (optParams) {
-  var params = Utils.extend({
-    endpoint: 'https://api.embed.ly/1/oembed',
-    apiKey: null,
-  }, optParams);
-
-  /**
-   * Embedly oembed endpoint.
-   * @type {string}
-   */
-  this.endpoint = params.endpoint;
-
-  /**
-   * API Key for embedly app.
-   * @type {string}
-   */
-  this.apiKey = params.apiKey;
-
-  AbstractEmbedProvider.call(this, params);
-};
-EmbedlyProvider.prototype = Object.create(AbstractEmbedProvider.prototype);
-module.exports = EmbedlyProvider;
-
-
-/**
- * Regex string for all URLs embedly provider can handle.
- * @constant
- */
-EmbedlyProvider.SUPPORTED_URLS_REGEX_STRING = '^((https?://(www\.flickr\.com/photos/.*|flic\.kr/.*|.*imgur\.com/.*|.*dribbble\.com/shots/.*|drbl\.in/.*|giphy\.com/gifs/.*|gph\.is/.*|vid\.me/.*|www\.slideshare\.net/.*/.*|www\.slideshare\.net/mobile/.*/.*|.*\.slideshare\.net/.*/.*|slidesha\.re/.*|www\.kickstarter\.com/projects/.*/.*|linkedin\.com/in/.*|linkedin\.com/pub/.*|.*\.linkedin\.com/in/.*|.*\.linkedin\.com/pub/.*|linkedin\.com/in/.*|linkedin\.com/company/.*|.*\.linkedin\.com/company/.*|www\.sliderocket\.com/.*|sliderocket\.com/.*|app\.sliderocket\.com/.*|portal\.sliderocket\.com/.*|beta-sliderocket\.com/.*|maps\.google\.com/maps\?.*|maps\.google\.com/\?.*|maps\.google\.com/maps/ms\?.*|www\.google\..*/maps/.*|google\..*/maps/.*|tumblr\.com/.*|.*\.tumblr\.com/post/.*|pastebin\.com/.*|storify\.com/.*/.*|prezi\.com/.*/.*|www\.wikipedia\.org/wiki/.*|.*\.wikipedia\.org/wiki/.*|www\.behance\.net/gallery/.*|behance\.net/gallery/.*|jsfiddle\.net/.*|www\.gettyimages\.com/detail/photo/.*|gty\.im/.*|jsbin\.com/.*/.*|jsbin\.com/.*|codepen\.io/.*/pen/.*|codepen\.io/.*/pen/.*|quora\.com/.*/answer/.*|www\.quora\.com/.*/answer/.*|www\.qzzr\.com/quiz/.*|.*amazon\..*/gp/product/.*|.*amazon\..*/.*/dp/.*|.*amazon\..*/dp/.*|.*amazon\..*/o/ASIN/.*|.*amazon\..*/gp/offer-listing/.*|.*amazon\..*/.*/ASIN/.*|.*amazon\..*/gp/product/images/.*|.*amazon\..*/gp/aw/d/.*|www\.amzn\.com/.*|amzn\.com/.*|fiverr\.com/.*/.*|www\.fiverr\.com/.*/.*|.*youtube\.com/watch.*|.*\.youtube\.com/v/.*|youtu\.be/.*|.*\.youtube\.com/user/.*|.*\.youtube\.com/.*#.*/.*|m\.youtube\.com/watch.*|m\.youtube\.com/index.*|.*\.youtube\.com/profile.*|.*\.youtube\.com/view_play_list.*|.*\.youtube\.com/playlist.*|www\.youtube\.com/embed/.*|youtube\.com/gif.*|www\.youtube\.com/gif.*|www\.youtube\.com/attribution_link.*|youtube\.com/attribution_link.*|youtube\.ca/.*|youtube\.jp/.*|youtube\.com\.br/.*|youtube\.co\.uk/.*|youtube\.nl/.*|youtube\.pl/.*|youtube\.es/.*|youtube\.ie/.*|it\.youtube\.com/.*|youtube\.fr/.*|.*twitch\.tv/.*|.*twitch\.tv/.*/b/.*|www\.ustream\.tv/recorded/.*|www\.ustream\.tv/channel/.*|www\.ustream\.tv/.*|ustre\.am/.*|.*\.dailymotion\.com/video/.*|.*\.dailymotion\.com/.*/video/.*|www\.livestream\.com/.*|new\.livestream\.com/.*|coub\.com/view/.*|coub\.com/embed/.*|vine\.co/v/.*|www\.vine\.co/v/.*|www\.vimeo\.com/groups/.*/videos/.*|www\.vimeo\.com/.*|vimeo\.com/groups/.*/videos/.*|vimeo\.com/.*|vimeo\.com/m/#/.*|player\.vimeo\.com/.*|www\.ted\.com/talks/.*\.html.*|www\.ted\.com/talks/lang/.*/.*\.html.*|www\.ted\.com/index\.php/talks/.*\.html.*|www\.ted\.com/index\.php/talks/lang/.*/.*\.html.*|www\.ted\.com/talks/|khanacademy\.org/.*|www\.khanacademy\.org/.*|www\.facebook\.com/video\.php.*|www\.facebook\.com/.*/posts/.*|fb\.me/.*|www\.facebook\.com/.*/videos/.*|fb\.com|plus\.google\.com/.*|www\.google\.com/profiles/.*|google\.com/profiles/.*|soundcloud\.com/.*|soundcloud\.com/.*/.*|soundcloud\.com/.*/sets/.*|soundcloud\.com/groups/.*|snd\.sc/.*))|(https://(vidd\.me/.*|vid\.me/.*|maps\.google\.com/maps\?.*|maps\.google\.com/\?.*|maps\.google\.com/maps/ms\?.*|www\.google\..*/maps/.*|google\..*/maps/.*|storify\.com/.*/.*|medium\.com/.*|medium\.com/.*/.*|quora\.com/.*/answer/.*|www\.quora\.com/.*/answer/.*|www\.qzzr\.com/quiz/.*|.*youtube\.com/watch.*|.*\.youtube\.com/v/.*|youtu\.be/.*|.*\.youtube\.com/playlist.*|www\.youtube\.com/embed/.*|youtube\.com/gif.*|www\.youtube\.com/gif.*|www\.youtube\.com/attribution_link.*|youtube\.com/attribution_link.*|youtube\.ca/.*|youtube\.jp/.*|youtube\.com\.br/.*|youtube\.co\.uk/.*|youtube\.nl/.*|youtube\.pl/.*|youtube\.es/.*|youtube\.ie/.*|it\.youtube\.com/.*|youtube\.fr/.*|coub\.com/view/.*|coub\.com/embed/.*|vine\.co/v/.*|www\.vine\.co/v/.*|gifs\.com/gif/.*|www\.gifs\.com/gif/.*|gifs\.com/.*|www\.gifs\.com/.*|www\.vimeo\.com/.*|vimeo\.com/.*|player\.vimeo\.com/.*|khanacademy\.org/.*|www\.khanacademy\.org/.*|www\.facebook\.com/video\.php.*|www\.facebook\.com/.*/posts/.*|fb\.me/.*|www\.facebook\.com/.*/videos/.*|plus\.google\.com/.*|soundcloud\.com/.*|soundcloud\.com/.*/.*|soundcloud\.com/.*/sets/.*|soundcloud\.com/groups/.*)))';
-
-
-/**
- * Call the proper endpoint for the passed URL and send the response back
- * by passing it to a callabck.
- * @param {string} url Url to get the oembed response for.
- * @param {Function} callback A callback function to call with the result.
- * @param {Object=} optArgs Optional arguments to pass with the URL.
- */
-EmbedlyProvider.prototype.getEmbedForUrl = function(
-    url, callback, optArgs) {
-  var endpoint = this.getOEmbedEndpointForUrl(url, optArgs);
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (xhttp.readyState == 4) {
-      var json = JSON.parse(xhttp.responseText);
-      callback(json);
-    }
-  };
-  xhttp.open('GET', endpoint, true);
-  xhttp.send();
-};
-
-
-/**
- * Returns the URL to call for oembed response.
- * @param {string} url URL to create the url for.
- * @param {Object} optArgs Arguments to pass with the URL.
- * @return {string}
- */
-EmbedlyProvider.prototype.getOEmbedEndpointForUrl = function(url, optArgs) {
-  var urlParams = Utils.extend({
-    key: this.apiKey,
-    // luxe: 1,
-    url: url
-  }, optArgs);
-  var queryParts = [];
-  for (var name in urlParams) {
-    queryParts.push([name, urlParams[name]].join('='));
-  }
-  return [this.endpoint, queryParts.join('&')].join('?');
-};
-
-
-/**
- * Returns the regex string this provider want to provide the embed for.
- * @return {string}
- */
-EmbedlyProvider.prototype.getUrlsRegex = function() {
-  return EmbedlyProvider.SUPPORTED_URLS_REGEX_STRING;
-};
-
-},{"../utils":31,"./abstractEmbedProvider":6}],13:[function(require,module,exports){
+},{"../errors":4,"../i18n":17,"../loader":21,"../paragraph":23,"../toolbars/button":26,"../utils":29}],13:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -4644,7 +4761,7 @@ GiphyComponent.prototype.getLength = function () {
   return 1;
 };
 
-},{"../component":2,"../i18n":18,"../loader":23,"../utils":31}],14:[function(require,module,exports){
+},{"../component":2,"../i18n":17,"../loader":21,"../utils":29}],14:[function(require,module,exports){
 'use strict';
 
 var Selection = require('../selection');
@@ -4660,10 +4777,10 @@ var GiphyComponent = require('./giphyComponent');
 
 
 /**
- * LayoutingExtension extension for the editor.
+ * LayoutExtension extension for the editor.
  *   Adds an extendable toolbar for components to add buttons to.
  */
-var LayoutingExtension = function () {
+var LayoutExtension = function () {
 
   /**
    * The editor this toolbelt belongs to.
@@ -4678,22 +4795,22 @@ var LayoutingExtension = function () {
   this.toolbar = null;
 
 };
-module.exports = LayoutingExtension;
+module.exports = LayoutExtension;
 
 
 /**
  * Extension class name.
  * @type {string}
  */
-LayoutingExtension.CLASS_NAME = 'LayoutingExtension';
+LayoutExtension.CLASS_NAME = 'LayoutExtension';
 
 
 /**
  * Initializes the toolbelt extensions.
  * @param  {Editor} editor Editor instance this installed on.
  */
-LayoutingExtension.onInstall = function(editor) {
-  var toolbeltExtension = new LayoutingExtension();
+LayoutExtension.onInstall = function(editor) {
+  var toolbeltExtension = new LayoutExtension();
   toolbeltExtension.init(editor);
 };
 
@@ -4701,7 +4818,7 @@ LayoutingExtension.onInstall = function(editor) {
 /**
  * Call to destroy instance and cleanup dom and event listeners.
  */
-LayoutingExtension.onDestroy = function() {
+LayoutExtension.onDestroy = function() {
   // pass
 };
 
@@ -4710,54 +4827,48 @@ LayoutingExtension.onDestroy = function() {
  * Initiates the toolbelt extension.
  * @param  {Editor} editor The editor to initialize the extension for.
  */
-LayoutingExtension.prototype.init = function(editor) {
+LayoutExtension.prototype.init = function(editor) {
   this.editor = editor;
 
   // Create a new toolbar for the toolbelt.
   this.toolbar = new Toolbar({
-    name: LayoutingExtension.TOOLBAR_NAME,
-    classNames: [LayoutingExtension.TOOLBAR_CLASS_NAME],
+    name: LayoutExtension.TOOLBAR_NAME,
+    classNames: [LayoutExtension.TOOLBAR_CLASS_NAME],
     rtl: this.editor.rtl
   });
 
   // TODO(mkhatib): Use Icons for buttons here.
   // Add layouting buttons to the toolbar.
   var buttons = [{
-    label: I18n.get('button.layout.single'),
-    icon: I18n.get('button.layout.icon.single'),
-    name: 'layout-single-column'
-  }, {
     label: I18n.get('button.layout.bleed'),
-    icon: I18n.get('button.layout.icon.bleed'),
-    name: 'layout-bleed'
+    icon: I18n.get('button.layout.icon.display'),
+    name: Layout.Types.Bleed
   }, {
-    label: I18n.get('button.layout.staged'),
-    icon: I18n.get('button.layout.icon.staged'),
-    name: 'layout-staged'
-  }, {
-    label: I18n.get('button.layout.left'),
-    icon: I18n.get('button.layout.icon.left'),
-    name: 'layout-float-left'
+    label: I18n.get('button.layout.justified'),
+    icon: I18n.get('button.layout.icon.justified'),
+    name: Layout.Types.SingleColumn
   }, {
     label: I18n.get('button.layout.right'),
     icon: I18n.get('button.layout.icon.right'),
-    name: 'layout-float-right'
+    name: Layout.Types.FloatRight
   }];
 
   for (var i = 0; i < buttons.length; i++) {
+
     var button = new Button({
       label: buttons[i].label,
       name: buttons[i].name,
       icon: buttons[i].icon,
       data: { name: buttons[i].name }
     });
-    button.addEventListener(
-        'click', this.handleLayoutButtonClick.bind(this));
+
+    button.addEventListener('click', this.handleLayoutButtonClick.bind(this));
+
     this.toolbar.addButton(button);
   }
 
   // Register the toolbelt toolbar with the editor.
-  this.editor.registerToolbar(LayoutingExtension.TOOLBAR_NAME, this.toolbar);
+  this.editor.registerToolbar(LayoutExtension.TOOLBAR_NAME, this.toolbar);
 
   // Listen to selection changes.
   this.editor.article.selection.addEventListener(
@@ -4767,23 +4878,23 @@ LayoutingExtension.prototype.init = function(editor) {
 
 
 /**
- * LayoutingExtension toolbar name.
+ * LayoutExtension toolbar name.
  * @type {string}
  */
-LayoutingExtension.TOOLBAR_NAME = 'layouting-toolbar';
+LayoutExtension.TOOLBAR_NAME = 'layouting-toolbar';
 
 
 /**
- * LayoutingExtension toolbar class name.
+ * LayoutExtension toolbar class name.
  * @type {string}
  */
-LayoutingExtension.TOOLBAR_CLASS_NAME = 'layouting-toolbar';
+LayoutExtension.TOOLBAR_CLASS_NAME = 'layouting-toolbar';
 
 
 /**
  * Handles clicking the insert button to expand the toolbelt.
  */
-LayoutingExtension.prototype.handleLayoutButtonClick = function(e) {
+LayoutExtension.prototype.handleLayoutButtonClick = function(e) {
   var ops = [];
   var insertLayoutAtIndex;
   var selectedComponent = this.editor.selection.getComponentAtStart();
@@ -4864,7 +4975,7 @@ LayoutingExtension.prototype.handleLayoutButtonClick = function(e) {
 /**
  * Handles selection change event on the editor to hide the toolbelt.
  */
-LayoutingExtension.prototype.handleSelectionChangedEvent = function() {
+LayoutExtension.prototype.handleSelectionChangedEvent = function() {
   var selectedComponent = this.editor.selection.getComponentAtStart();
   if ((selectedComponent instanceof Figure && !selectedComponent.isDataUrl) ||
       selectedComponent instanceof EmbeddedComponent ||
@@ -4884,225 +4995,11 @@ LayoutingExtension.prototype.handleSelectionChangedEvent = function() {
 /**
  * Handles new button added to toolbelt to show the insert button.
  */
-LayoutingExtension.prototype.handleButtonAdded = function () {
+LayoutExtension.prototype.handleButtonAdded = function () {
   this.insertButton.setVisible(true);
 };
 
-},{"../figure":17,"../i18n":18,"../layout":21,"../loader":23,"../selection":27,"../toolbars/button":28,"../toolbars/toolbar":30,"../utils":31,"./embeddedComponent":10,"./giphyComponent":13}],15:[function(require,module,exports){
-'use strict';
-
-var Utils = require('../utils');
-var Attachment = require('./attachment');
-var Figure = require('../figure');
-var Button = require('../toolbars/button');
-var I18n = require('../i18n');
-
-
-/**
- * Allows users to take selfies and insert them into the article.
- * @param {Object=} optParams Optional parameters.
- */
-var SelfieExtension = function(optParams) {
-
-  var params = Utils.extend({
-    // TODO(mkhatib): Add config params for size and shutter sound.
-    editor: null,
-  }, optParams);
-
-  // Create offscreen canvas to use as video buffer from the webcam.
-  // TODO(mkhatib): Maybe actually insert it as a Figure when /selfie
-  // is typed to see live view of it and then the picture is taken!
-  this.camDom = document.getElementById(SelfieExtension.CAM_PREVIEW_ELEMENT_ID);
-  if (!this.camDom) {
-    this.camDom = document.createElement('div');
-    this.camDom.style.position = 'absolute';
-    this.camDom.style.top = '-9999px';
-    this.camDom.style.left = '-9999px';
-    this.camDom.setAttribute('id', SelfieExtension.CAM_PREVIEW_ELEMENT_ID);
-    document.body.appendChild(this.camDom);
-  }
-
-  /* jshint ignore:start */
-  Webcam.set({
-    width: 320,
-    height: 240,
-    dest_width: 1280,
-    dest_height: 720,
-    crop_width: 1280,
-    crop_height: 720,
-    image_format: 'jpeg',
-    jpeg_quality: 90
-  });
-  /* jshint ignore:end */
-
-  /**
-   * Editor instance this extension was installed on.
-   * @type {Editor}
-   */
-  this.editor = params.editor;
-
-  /**
-   * Toolbelt toolbar instance.
-   * @type {Toolbar}
-   */
-  this.toolbelt = this.editor.getToolbar(SelfieExtension.TOOLBELT_TOOLBAR_NAME);
-
-};
-module.exports = SelfieExtension;
-
-
-/**
- * Extension class name.
- * @type {string}
- */
-SelfieExtension.CLASS_NAME = 'SelfieExtension';
-
-
-/**
- * The preview element id.
- * @type {string}
- */
-SelfieExtension.CAM_PREVIEW_ELEMENT_ID = 'carbon-camera';
-
-
-/**
- * Command regex to take a selfie.
- * @type {string}
- */
-SelfieExtension.COMMAND_REGEX = '^\\+selfie$';
-
-
-/**
- * Event to fire when the selfie is taken.
- * @type {String}
- */
-SelfieExtension.ATTACHMENT_ADDED_EVENT_NAME = 'attachment-added';
-
-
-/**
- * Toolbar name for the toolbelt toolbar.
- * @type {string}
- */
-SelfieExtension.TOOLBELT_TOOLBAR_NAME = 'toolbelt-toolbar';
-
-
-/**
- * Initiate an extension instance.
- * @param  {Editor} editor Editor installing this extension.
- */
-SelfieExtension.onInstall = function (editor) {
-  if (!Webcam) {
-    console.error('SelfieExtension depends on Webcam.js being loaded. Make' +
-      ' sure to include it in your app.');
-    return;
-  }
-
-  var extension = new SelfieExtension({
-    editor: editor
-  });
-  extension.init();
-};
-
-
-/**
- * Registers the regex with the editor.
- */
-SelfieExtension.prototype.init = function() {
-  this.editor.registerRegex(
-      I18n.get('regex.selfie') || SelfieExtension.COMMAND_REGEX,
-      this.handleMatchedRegex.bind(this));
-
-  var selfieButton = new Button({
-    label: I18n.get('button.selfie'),
-    icon: I18n.get('button.icon.selfie')
-  });
-  selfieButton.addEventListener('click', this.handleInsertClicked.bind(this));
-  this.toolbelt.addButton(selfieButton);
-};
-
-
-/**
- * Takes a selfie from the webcam and make a callback with the operations
- * to execute to insert it.
- * @param  {Function} opsCallback Callback to call with the operations to insert
- * the selfie.
- */
-SelfieExtension.prototype.letMeTakeASelfie = function(opsCallback) {
-  var that = this;
-  var ops = [];
-  Webcam.attach('#' + SelfieExtension.CAM_PREVIEW_ELEMENT_ID);
-  Webcam.on('live', function () {
-    setTimeout(function() {
-      Webcam.snap(function(dataUri) {
-        var selection = that.editor.article.selection;
-        var component = selection.getComponentAtStart();
-        var atIndex = component.getIndexInSection();
-        // Create a figure with the file Data URL and insert it.
-        var figure = new Figure({src: dataUri});
-        figure.section = selection.getSectionAtStart();
-        var insertFigureOps = figure.getInsertOps(atIndex);
-
-        // Add the new component created from the text.
-        Utils.arrays.extend(ops, figure.getInsertOps(atIndex));
-
-        if (opsCallback) {
-          opsCallback(ops);
-        }
-
-        // Create an attachment to track the figure and insertion operations.
-        var attachment = new Attachment({
-          dataUri: dataUri,
-          figure: selection.getSectionAtStart().getComponentByName(figure.name),
-          editor: that.editor,
-          insertedOps: insertFigureOps
-        });
-
-        // Dispatch an attachment added event to allow clients to upload the
-        // file.
-        var newEvent = new CustomEvent(
-          SelfieExtension.ATTACHMENT_ADDED_EVENT_NAME, {
-            detail: { attachment: attachment }
-        });
-        that.editor.dispatchEvent(newEvent);
-      });
-
-      Webcam.off('live');
-      Webcam.reset();
-    }, 1000);
-  });
-};
-
-
-/**
- * Handles regex match by instantiating a component.
- * @param {Component} matchedComponent Component that matched registered regex.
- * @param {Function} opsCallback Callback to send list of operations to exectue.
- */
-SelfieExtension.prototype.handleMatchedRegex = function(
-    matchedComponent, opsCallback) {
-  var ops = [];
-  var atIndex = matchedComponent.getIndexInSection();
-  Utils.arrays.extend(ops, matchedComponent.getDeleteOps(atIndex));
-
-  this.letMeTakeASelfie(function(newOps) {
-    Utils.arrays.extend(ops, newOps);
-    opsCallback(ops);
-  });
-};
-
-
-/**
- * Handles clicking take a selfie button.
- */
-SelfieExtension.prototype.handleInsertClicked = function() {
-  var that = this;
-  this.letMeTakeASelfie(function(ops) {
-    that.editor.article.transaction(ops);
-    that.editor.dispatchEvent(new Event('change'));
-  });
-};
-
-},{"../figure":17,"../i18n":18,"../toolbars/button":28,"../utils":31,"./attachment":7}],16:[function(require,module,exports){
+},{"../figure":16,"../i18n":17,"../layout":19,"../loader":21,"../selection":25,"../toolbars/button":26,"../toolbars/toolbar":28,"../utils":29,"./embeddedComponent":11,"./giphyComponent":13}],15:[function(require,module,exports){
 'use strict';
 
 
@@ -5241,7 +5138,7 @@ ShortcutsManager.prototype.onDestroy = function() {
   this.registery = {};
 };
 
-},{}],17:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -5638,7 +5535,7 @@ Figure.prototype.updateCaption = function(caption) {
   this.captionParagraph.setText(caption);
 };
 
-},{"./component":2,"./i18n":18,"./loader":23,"./paragraph":25,"./utils":31}],18:[function(require,module,exports){
+},{"./component":2,"./i18n":17,"./loader":21,"./paragraph":23,"./utils":29}],17:[function(require,module,exports){
 'use strict';
 
 var I18n = {};
@@ -5732,41 +5629,7 @@ I18n.get = function(id, optLocale) {
   return I18n.LANG_STRING_MAP[locale][id];
 };
 
-},{}],19:[function(require,module,exports){
-'use strict';
-
-var I18n = require('../i18n');
-
-// Caption placeholders.
-I18n.set('ar', 'placeholder.figure'  , 'اكتب وصف للصورة (اختياري)');
-I18n.set('ar', 'placeholder.embed'   , 'اكتب وصف للتضمين (اختياري)');
-I18n.set('ar', 'placeholder.href'    , 'ما هو الرابط؟');
-I18n.set('ar', 'placeholder.video'   , 'ألصق رابط يوتيوب، فاين، فيديو فيسبوك، ساوند كلاود أو غيرها...');
-I18n.set('ar', 'placeholder.photo'   , 'ألصق رابط لصورة، صورة فيسبوك، إنستغرام أو غيرها...');
-I18n.set('ar', 'placeholder.post'    , 'ألصق رابط لفيسبوك، تويتر، جيتهاب جيست أو غيرها...');
-I18n.set('ar', 'placeholder.gif'     , 'اكتب +جيفي <نص إنجليزي للبحث> واضغط زر الإدخال أو ألصق رابط من جيفي...');
-I18n.set('ar', 'placeholder.quiz'    , 'ألصق رابط من qzzr.com أو slideshare أو غيرها...');
-
-// Toolbelt Buttons.
-I18n.set('ar', 'button.upload' , 'تحميل صورة');
-I18n.set('ar', 'button.video'  , 'أدخل فيديو');
-I18n.set('ar', 'button.photo'  , 'أدخل صورة برابط');
-I18n.set('ar', 'button.post'   , 'تضمين منشور');
-I18n.set('ar', 'button.gif'    , 'أدخل GIF');
-I18n.set('ar', 'button.quiz'   , 'أدخل عرض');
-I18n.set('ar', 'button.selfie' , 'نفصورة!');
-
-// Layouting Toolbar Buttons.
-I18n.set('ar', 'button.layout.single'   , 'خانة');
-I18n.set('ar', 'button.layout.bleed'    , 'رف');
-I18n.set('ar', 'button.layout.staged'   , 'مسرح');
-I18n.set('ar', 'button.layout.left'     , 'شمال');
-I18n.set('ar', 'button.layout.right'    , 'يمين');
-
-I18n.set('ar', 'regex.giphy', '^\\+جيفي\\s(.+[a-zA-Z])$');
-I18n.set('ar', 'regex.selfie', '^\\+(?:نفصور[ة|ه]|سي?لفي)$');
-
-},{"../i18n":18}],20:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 'use strict';
 
 var I18n = require('../i18n');
@@ -5799,23 +5662,24 @@ I18n.set('en', 'button.icon.quiz'   , 'fa fa-question');
 I18n.set('en', 'button.icon.selfie' , 'fa fa-camera');
 
 // Layouting Toolbar Buttons.
-I18n.set('en', 'button.layout.single'   , 'Column');
-I18n.set('en', 'button.layout.bleed'    , 'Shelf');
-I18n.set('en', 'button.layout.staged'   , 'Stage');
-I18n.set('en', 'button.layout.left'     , 'Left');
+// I18n.set('en', 'button.layout.single'   , 'Column');
+// I18n.set('en', 'button.layout.staged'   , 'Stage');
+// I18n.set('en', 'button.layout.left'     , 'Left');
+I18n.set('en', 'button.layout.bleed'    , 'Bleed');
+I18n.set('en', 'button.layout.justified', 'Justified');
 I18n.set('en', 'button.layout.right'    , 'Right');
 
-I18n.set('en', 'button.layout.icon.single'   , 'fa fa-align-justify');
-I18n.set('en', 'button.layout.icon.bleed'    , 'fa fa-arrows-h');
-I18n.set('en', 'button.layout.icon.staged'   , 'fa fa-desktop');
-I18n.set('en', 'button.layout.icon.left'     , 'fa fa-align-left');
-I18n.set('en', 'button.layout.icon.right'    , 'fa fa-align-right');
+I18n.set('en', 'button.layout.icon.display', 'lyt-icon lyt-icon--display');
+I18n.set('en', 'button.layout.icon.justified', 'lyt-icon lyt-icon--justified');
+I18n.set('en', 'button.layout.icon.right'  , 'lyt-icon lyt-icon--right');
+// I18n.set('en', 'button.layout.icon.bleed'    , 'fa fa-arrows-h');
+// I18n.set('en', 'button.layout.icon.left'     , 'fa fa-align-left');
 
 I18n.set('en', 'regex.giphy', '^\\+giphy\\s(.+[a-zA-Z])$');
 I18n.set('en', 'regex.selfie', '^\\+selfie$');
 
 
-},{"../i18n":18}],21:[function(require,module,exports){
+},{"../i18n":17}],19:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -6105,7 +5969,7 @@ Layout.prototype.getJSONModel = function() {
   return layout;
 };
 
-},{"./loader":23,"./paragraph":25,"./section":26,"./utils":31}],22:[function(require,module,exports){
+},{"./loader":21,"./paragraph":23,"./section":24,"./utils":29}],20:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -6407,7 +6271,7 @@ List.prototype.getJSONModel = function() {
   return section;
 };
 
-},{"./loader":23,"./paragraph":25,"./section":26,"./utils":31}],23:[function(require,module,exports){
+},{"./loader":21,"./paragraph":23,"./section":24,"./utils":29}],21:[function(require,module,exports){
 'use strict';
 
 var Errors = require('./errors');
@@ -6468,13 +6332,13 @@ var Loader = (function() {
 })();
 module.exports = Loader;
 
-},{"./errors":4}],24:[function(require,module,exports){
+},{"./errors":4}],22:[function(require,module,exports){
 'use strict';
 
 // TODO(mkhatib): Figure out a better way to load translations lazily.
 module.exports.I18n = require('./i18n');
 require('./i18n/en');
-require('./i18n/ar');
+// require('./i18n/ar');
 
 module.exports.Editor = require('./editor');
 module.exports.Article = require('./article');
@@ -6501,17 +6365,19 @@ module.exports.Loader = require('./loader');
 
 // TODO(mkhatib): Find a better way to expose the classes and without making
 // them part of the whole editor Javascript.
-module.exports.GiphyComponent = require('./extensions/giphyComponent');
+// module.exports.GiphyComponent = require('./extensions/giphyComponent');
 module.exports.EmbeddedComponent = require('./extensions/embeddedComponent');
 module.exports.AbstractEmbedProvider = require('./extensions/abstractEmbedProvider');
-module.exports.EmbedlyProvider = require('./extensions/embedlyProvider');
+// module.exports.EmbedlyProvider = require('./extensions/embedlyProvider');
+module.exports.CreoProvider = require('./extensions/creoProvider');
 module.exports.CarbonEmbedProvider = require('./extensions/carbonEmbedProvider');
 module.exports.EmbeddingExtension = require('./extensions/embeddingExtension');
-module.exports.SelfieExtension = require('./extensions/selfieExtension');
+module.exports.EmbedButtonExtension = require('./extensions/embedButtonExtension');
+// module.exports.SelfieExtension = require('./extensions/selfieExtension');
+module.exports.LayoutExtension = require('./extensions/layoutExtension');
+// module.exports.LayoutingExtension = require('./extensions/layoutingExtension');
 
-module.exports.LayoutingExtension = require('./extensions/layoutingExtension');
-
-},{"./article":1,"./editor":3,"./extensions/abstractEmbedProvider":6,"./extensions/carbonEmbedProvider":8,"./extensions/embeddedComponent":10,"./extensions/embeddingExtension":11,"./extensions/embedlyProvider":12,"./extensions/giphyComponent":13,"./extensions/layoutingExtension":14,"./extensions/selfieExtension":15,"./figure":17,"./i18n":18,"./i18n/ar":19,"./i18n/en":20,"./layout":21,"./list":22,"./loader":23,"./paragraph":25,"./section":26,"./selection":27}],25:[function(require,module,exports){
+},{"./article":1,"./editor":3,"./extensions/abstractEmbedProvider":6,"./extensions/carbonEmbedProvider":7,"./extensions/creoProvider":9,"./extensions/embedButtonExtension":10,"./extensions/embeddedComponent":11,"./extensions/embeddingExtension":12,"./extensions/layoutExtension":14,"./figure":16,"./i18n":17,"./i18n/en":18,"./layout":19,"./list":20,"./loader":21,"./paragraph":23,"./section":24,"./selection":25}],23:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -7332,7 +7198,7 @@ Paragraph.prototype.isBlank = function() {
   );
 };
 
-},{"./component":2,"./loader":23,"./utils":31}],26:[function(require,module,exports){
+},{"./component":2,"./loader":21,"./utils":29}],24:[function(require,module,exports){
 'use strict';
 
 var Selection = require('./selection');
@@ -7620,7 +7486,7 @@ Section.prototype.getComponentByName = function(name) {
   }
 };
 
-},{"./component":2,"./loader":23,"./selection":27,"./utils":31}],27:[function(require,module,exports){
+},{"./component":2,"./loader":21,"./selection":25,"./utils":29}],25:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -8169,7 +8035,7 @@ var Selection = (function() {
 })();
 module.exports = Selection;
 
-},{"./utils":31}],28:[function(require,module,exports){
+},{"./utils":29}],26:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -8382,7 +8248,7 @@ Button.prototype.resetFields = function () {
   }
 };
 
-},{"../utils":31}],29:[function(require,module,exports){
+},{"../utils":29}],27:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -8483,7 +8349,7 @@ TextField.prototype.setValue = function (value) {
   this.dom.value = value;
 };
 
-},{"../utils":31}],30:[function(require,module,exports){
+},{"../utils":29}],28:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -8848,7 +8714,7 @@ Toolbar.prototype.resetFields = function () {
   }
 };
 
-},{"../utils":31}],31:[function(require,module,exports){
+},{"../utils":29}],29:[function(require,module,exports){
 'use strict';
 
 var Utils = {};
@@ -9456,5 +9322,5 @@ Utils.CustomEventTarget.prototype.dispatchEvent = function(event) {
 
 })();
 
-},{}]},{},[24])(24)
+},{}]},{},[22])(22)
 });

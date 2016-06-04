@@ -3,7 +3,7 @@
 // TODO(mkhatib): Figure out a better way to load translations lazily.
 module.exports.I18n = require('./i18n');
 require('./i18n/en');
-require('./i18n/ar');
+// require('./i18n/ar');
 
 module.exports.Editor = require('./editor');
 module.exports.Article = require('./article');
@@ -30,12 +30,14 @@ module.exports.Loader = require('./loader');
 
 // TODO(mkhatib): Find a better way to expose the classes and without making
 // them part of the whole editor Javascript.
-module.exports.GiphyComponent = require('./extensions/giphyComponent');
+// module.exports.GiphyComponent = require('./extensions/giphyComponent');
 module.exports.EmbeddedComponent = require('./extensions/embeddedComponent');
 module.exports.AbstractEmbedProvider = require('./extensions/abstractEmbedProvider');
-module.exports.EmbedlyProvider = require('./extensions/embedlyProvider');
+// module.exports.EmbedlyProvider = require('./extensions/embedlyProvider');
+module.exports.CreoProvider = require('./extensions/creoProvider');
 module.exports.CarbonEmbedProvider = require('./extensions/carbonEmbedProvider');
 module.exports.EmbeddingExtension = require('./extensions/embeddingExtension');
-module.exports.SelfieExtension = require('./extensions/selfieExtension');
-
-module.exports.LayoutingExtension = require('./extensions/layoutingExtension');
+module.exports.EmbedButtonExtension = require('./extensions/embedButtonExtension');
+// module.exports.SelfieExtension = require('./extensions/selfieExtension');
+module.exports.LayoutExtension = require('./extensions/layoutExtension');
+// module.exports.LayoutingExtension = require('./extensions/layoutingExtension');
