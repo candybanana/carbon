@@ -5,7 +5,7 @@ var Errors = require('../errors');
 var Loader = require('../loader');
 var Button = require('../toolbars/button');
 var Paragraph = require('../paragraph');
-var I18n = require('../i18n');
+// var I18n = require('../i18n');
 
 /**
  * EmbedButtonExtension allows embedding different kind of components using

@@ -41,3 +41,6 @@ module.exports.EmbedButtonExtension = require('./extensions/embedButtonExtension
 // module.exports.SelfieExtension = require('./extensions/selfieExtension');
 module.exports.LayoutExtension = require('./extensions/layoutExtension');
 // module.exports.LayoutingExtension = require('./extensions/layoutingExtension');
+
+// Custom HTML component
+module.exports.HTMLComponent = require('./extensions/htmlComponent');
