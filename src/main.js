@@ -34,13 +34,13 @@ module.exports.Loader = require('./loader');
 module.exports.EmbeddedComponent = require('./extensions/embeddedComponent');
 module.exports.AbstractEmbedProvider = require('./extensions/abstractEmbedProvider');
 // module.exports.EmbedlyProvider = require('./extensions/embedlyProvider');
-module.exports.CreoProvider = require('./extensions/creoProvider');
 module.exports.CarbonEmbedProvider = require('./extensions/carbonEmbedProvider');
 module.exports.EmbeddingExtension = require('./extensions/embeddingExtension');
-module.exports.EmbedButtonExtension = require('./extensions/embedButtonExtension');
 // module.exports.SelfieExtension = require('./extensions/selfieExtension');
 module.exports.LayoutExtension = require('./extensions/layoutExtension');
 // module.exports.LayoutingExtension = require('./extensions/layoutingExtension');
 
-// Custom HTML component
+// Custom components
+module.exports.CreoProvider = require('./extensions/creoProvider');
+module.exports.EmbedButtonExtension = require('./extensions/embedButtonExtension');
 module.exports.HTMLComponent = require('./extensions/htmlComponent');
