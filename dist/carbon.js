@@ -3357,7 +3357,7 @@ var Utils = require('../utils');
  */
 var CreoProvider = function (optParams) {
   var params = Utils.extend({
-    endpoint: 'https://videogamer.prog/ajax/oembed',
+    endpoint: '/ajax/oembed',
     apiKey: null,
   }, optParams);
 
