@@ -1270,6 +1270,10 @@ Editor.prototype.handleInputEvent = function() {
   var modelText = component.text;
   var modelLength = component.getLength();
 
+  if (!(component instanceof Paragraph)) {
+    return;
+  }
+
   var domText = Utils.getTextFromElement(component.dom);
   var domLength = domText.length;
 
@@ -3165,8 +3169,12 @@ CarbonEmbedProvider.PROVIDERS_OEMBED_REGEX_MAP = {
         // 'https://publish.twitter.com/oembed.json',
 
     // Statuses.
-    '^https?://(?:www\.)?twitter\.com/[a-zA-Z0-9_]+/status/\\d+$':
-        'https://api.twitter.com/1/statuses/oembed.json'
+    // '^https?://(?:www\.)?twitter\.com/[a-zA-Z0-9_]+/status/\\d+$':
+        // 'https://api.twitter.com/1/statuses/oembed.json'
+
+    // Status with query strings
+      '^https?://(?:www\.)?twitter\.com/[a-zA-Z0-9_]+/status/\\d+([\?a-zA-Z0-9_=\-]+)?$':
+         'https://api.twitter.com/1/statuses/oembed.json'
   },
   instagram: {
     '^https?://(?:www\.)?instagr\.?am(?:\.com)?/p/[a-zA-Z0-9_\-]+/?':
