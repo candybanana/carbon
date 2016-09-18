@@ -242,9 +242,9 @@ var Selection = (function() {
       selection.addRange(range);
 
       // Scroll the selected component into view.
-      if (this.start.component.dom.scrollIntoViewIfNeeded) {
-        this.start.component.dom.scrollIntoViewIfNeeded(false);
-      }
+      // if (this.start.component.dom.scrollIntoViewIfNeeded) {
+      //   this.start.component.dom.scrollIntoViewIfNeeded(false);
+      // }
       var event = new Event(Selection.Events.SELECTION_CHANGED);
       this.dispatchEvent(event);
     };

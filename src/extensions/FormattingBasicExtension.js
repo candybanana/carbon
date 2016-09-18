@@ -102,11 +102,11 @@ Formatting.Actions = {
   //   value: Paragraph.Types.MainHeader,
   //   shortcuts: ['alt+cmd+1', 'alt+ctrl+1']
   // }, {
-    label: 'h2',
+    label: 'H',
     value: Paragraph.Types.SecondaryHeader,
     shortcuts: ['alt+cmd+2', 'alt+ctrl+2']
   }, {
-    label: 'h3',
+    label: 'H',
     value: Paragraph.Types.ThirdHeader,
     shortcuts: ['alt+cmd+3', 'alt+ctrl+3']
   }, {
@@ -120,12 +120,12 @@ Formatting.Actions = {
   }],
 
   Inline: [{
-    label: 'B',
+    label: 'b',
     value: 'strong',
     tagNames: ['strong', 'b'],
     shortcuts: ['ctrl+b', 'cmd+b']
   }, {
-    label: 'I',
+    label: 'i',
     value: 'em',
     tagNames: ['em', 'i'],
     shortcuts: ['ctrl+i', 'cmd+i']
@@ -135,7 +135,7 @@ Formatting.Actions = {
   //   tagNames: ['u'],
   //   shortcuts: ['ctrl+u', 'cmd+u']
   // }, {
-    label: 'S',
+    label: 's',
     value: 's',
     tagNames: ['strike', 's'],
     shortcuts: ['ctrl+s', 'cmd+s']
@@ -401,6 +401,10 @@ Formatting.prototype.handleSelectionChangedEvent = function() {
 Formatting.prototype.reloadBlockToolbarStatus = function() {
   var selection = this.editor.article.selection;
   var paragraph = selection.getComponentAtStart();
+
+  // only display embed button when the paragraph is empty
+  var embedVisible = paragraph.getLength() === 0 ? true : false;
+  this.blockToolbar.getButtonByName('embed').setVisible(embedVisible);
 
   var button = this.blockToolbar.getButtonByName(paragraph.paragraphType);
   this.blockToolbar.setActiveButton(button);

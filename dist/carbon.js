@@ -2366,11 +2366,11 @@ Formatting.Actions = {
   //   value: Paragraph.Types.MainHeader,
   //   shortcuts: ['alt+cmd+1', 'alt+ctrl+1']
   // }, {
-    label: 'h2',
+    label: 'H',
     value: Paragraph.Types.SecondaryHeader,
     shortcuts: ['alt+cmd+2', 'alt+ctrl+2']
   }, {
-    label: 'h3',
+    label: 'H',
     value: Paragraph.Types.ThirdHeader,
     shortcuts: ['alt+cmd+3', 'alt+ctrl+3']
   }, {
@@ -2384,12 +2384,12 @@ Formatting.Actions = {
   }],
 
   Inline: [{
-    label: 'B',
+    label: 'b',
     value: 'strong',
     tagNames: ['strong', 'b'],
     shortcuts: ['ctrl+b', 'cmd+b']
   }, {
-    label: 'I',
+    label: 'i',
     value: 'em',
     tagNames: ['em', 'i'],
     shortcuts: ['ctrl+i', 'cmd+i']
@@ -2399,7 +2399,7 @@ Formatting.Actions = {
   //   tagNames: ['u'],
   //   shortcuts: ['ctrl+u', 'cmd+u']
   // }, {
-    label: 'S',
+    label: 's',
     value: 's',
     tagNames: ['strike', 's'],
     shortcuts: ['ctrl+s', 'cmd+s']
@@ -2665,6 +2665,10 @@ Formatting.prototype.handleSelectionChangedEvent = function() {
 Formatting.prototype.reloadBlockToolbarStatus = function() {
   var selection = this.editor.article.selection;
   var paragraph = selection.getComponentAtStart();
+
+  // only display embed button when the paragraph is empty
+  var embedVisible = paragraph.getLength() === 0 ? true : false;
+  this.blockToolbar.getButtonByName('embed').setVisible(embedVisible);
 
   var button = this.blockToolbar.getButtonByName(paragraph.paragraphType);
   this.blockToolbar.setActiveButton(button);
@@ -3395,7 +3399,7 @@ module.exports = CreoProvider;
  *
  * @constant
  */
-CreoProvider.SUPPORTED_URLS_REGEX_STRING = '^((https?://(www\.flickr\.com/photos/.*|flic\.kr/.*|www\.slideshare\.net/.*/.*|www\.slideshare\.net/mobile/.*/.*|.*\.slideshare\.net/.*/.*|slidesha\.re/.*|www\.kickstarter\.com/projects/.*/.*|www\.gettyimages\.com/detail/photo/.*|gty\.im/.*|.*youtube\.com/watch.*|.*\.youtube\.com/v/.*|youtu\.be/.*|.*\.youtube\.com/user/.*|.*\.youtube\.com/.*#.*/.*|m\.youtube\.com/watch.*|m\.youtube\.com/index.*|.*\.youtube\.com/profile.*|.*\.youtube\.com/view_play_list.*|.*\.youtube\.com/playlist.*|www\.youtube\.com/embed/.*|youtube\.com/gif.*|www\.youtube\.com/gif.*|www\.youtube\.com/attribution_link.*|youtube\.com/attribution_link.*|youtube\.ca/.*|youtube\.jp/.*|youtube\.com\.br/.*|youtube\.co\.uk/.*|youtube\.nl/.*|youtube\.pl/.*|youtube\.es/.*|youtube\.ie/.*|it\.youtube\.com/.*|youtube\.fr/.*|vine\.co/v/.*|www\.vine\.co/v/.*|www\.vimeo\.com/groups/.*/videos/.*|www\.vimeo\.com/.*|vimeo\.com/groups/.*/videos/.*|vimeo\.com/.*|vimeo\.com/m/#/.*|player\.vimeo\.com/.*|www\.facebook\.com/video\.php.*|www\.facebook\.com/.*/posts/.*|fb\.me/.*|www\.facebook\.com/.*/videos/.*|fb\.com|soundcloud\.com/.*|soundcloud\.com/.*/.*|soundcloud\.com/.*/sets/.*|soundcloud\.com/groups/.*|snd\.sc/.*|.*videogamer\..*/.*)))';
+CreoProvider.SUPPORTED_URLS_REGEX_STRING = '^((https?://(www\.flickr\.com/photos/.*|flic\.kr/.*|www\.slideshare\.net/.*/.*|www\.slideshare\.net/mobile/.*/.*|.*\.slideshare\.net/.*/.*|slidesha\.re/.*|www\.kickstarter\.com/projects/.*/.*|www\.gettyimages\.com/detail/photo/.*|gty\.im/.*|.*youtube\.com/watch.*|.*\.youtube\.com/v/.*|youtu\.be/.*|.*\.youtube\.com/user/.*|.*\.youtube\.com/.*#.*/.*|m\.youtube\.com/watch.*|m\.youtube\.com/index.*|.*\.youtube\.com/profile.*|.*\.youtube\.com/view_play_list.*|.*\.youtube\.com/playlist.*|www\.youtube\.com/embed/.*|youtube\.com/gif.*|www\.youtube\.com/gif.*|www\.youtube\.com/attribution_link.*|youtube\.com/attribution_link.*|youtube\.ca/.*|youtube\.jp/.*|youtube\.com\.br/.*|youtube\.co\.uk/.*|youtube\.nl/.*|youtube\.pl/.*|youtube\.es/.*|youtube\.ie/.*|it\.youtube\.com/.*|youtube\.fr/.*|vine\.co/v/.*|www\.vine\.co/v/.*|www\.vimeo\.com/groups/.*/videos/.*|www\.vimeo\.com/.*|vimeo\.com/groups/.*/videos/.*|vimeo\.com/.*|vimeo\.com/m/#/.*|player\.vimeo\.com/.*|www\.facebook\.com/video\.php.*|www\.facebook\.com/.*/posts/.*|fb\.me/.*|www\.facebook\.com/.*/videos/.*|fb\.com|soundcloud\.com/.*|soundcloud\.com/.*/.*|soundcloud\.com/.*/sets/.*|soundcloud\.com/groups/.*|snd\.sc/.*|videogamer\..*/.*)))';
 
 /**
  * Call the proper endpoint for the passed URL and send the response back
@@ -3454,7 +3458,8 @@ var Utils = require('../utils');
 var Errors = require('../errors');
 var Loader = require('../loader');
 var Button = require('../toolbars/button');
-var Paragraph = require('../paragraph');
+var EmbeddedComponent = require('./embeddedComponent');
+// var Paragraph = require('../paragraph');
 // var I18n = require('../i18n');
 
 /**
@@ -3504,7 +3509,6 @@ EmbedButtonExtension.CLASS_NAME = 'EmbedButtonExtension';
  */
 EmbedButtonExtension.BLOCK_TOOLBAR_NAME = 'block-toolbar';
 
-
 /**
  * Instantiate an instance of the extension and configure it.
  * @param  {Editor} editor Instance of the editor installing this extension.
@@ -3541,9 +3545,12 @@ EmbedButtonExtension.prototype.init = function() {
   this.blockToolbar = this.editor.getToolbar(EmbedButtonExtension.BLOCK_TOOLBAR_NAME);
 
   // add button to toolbar
-  var insertButton = new Button({ label: '+' });
+  var insertButton = new Button({
+    name: 'embed',
+    label: '+'
+  });
   // insertButton.setVisible(false);
-  insertButton.addEventListener('click', this.handleInsertClicked.bind(this));
+  // insertButton.addEventListener('click', this.handleInsertClicked.bind(this));
 
   this.blockToolbar.addButton(insertButton);
 
@@ -3604,25 +3611,46 @@ EmbedButtonExtension.prototype.init = function() {
 };
 
 
-EmbedButtonExtension.prototype.handleInsertClicked = function(event) {
+// EmbedButtonExtension.prototype.handleInsertClicked = function(event) {
 
   // open dialog
-  console.log('Opening embed dialog...');
+  // console.log('Opening embed dialog...');
 
   // embed dialog will do insersion
 
-  var button = event.detail.target;
-  var placeholder = button.data.placeholder;
-  var newP = new Paragraph({
-    placeholderText: placeholder,
-    section: this.editor.selection.getSectionAtStart()
-  });
+  // var button = event.detail.target;
+  // var placeholder = button.data.placeholder;
+  // var newP = new Paragraph({
+  //   placeholderText: placeholder,
+  //   section: this.editor.selection.getSectionAtStart()
+  // });
 
-  var index = this.editor.selection.getComponentAtStart().getIndexInSection();
-  this.editor.article.transaction(newP.getInsertOps(index));
+  // var index = this.editor.selection.getComponentAtStart().getIndexInSection();
+  // this.editor.article.transaction(newP.getInsertOps(index));
+// };
+
+// CUSTOM CREO FUNCTIONALITY
+EmbedButtonExtension.insertEmbed = function (editor, config) {
+
+  // var newEmbed = new EmbeddedComponent({
+  //   url: "https://videogamer.com/media/deus-ex-mankind-divided1111111",
+  //   type: "image",
+  //   provider: "creo",
+  //   serviceName: "VideoGamer",
+  //   section: editor.selection.getSectionAtStart()
+  // });
+
+  var newEmbed     = new EmbeddedComponent(config),
+      curComponent = editor.selection.getComponentAtStart(),
+      index        = curComponent.getIndexInSection();
+
+  // delete current matched component (created Paragraph)
+  editor.article.transaction(curComponent.getDeleteOps(index));
+
+  // insert embed
+  editor.article.transaction(newEmbed.getInsertOps(index));
 };
-
-
+// END CUSTOM CREO FUNCTIONALITY
 
 /**
  * Handles regex match by instantiating a component.
@@ -3649,7 +3677,7 @@ EmbedButtonExtension.prototype.handleRegexMatch = function(
   opsCallback(ops);
 };
 
-},{"../errors":4,"../loader":22,"../paragraph":24,"../toolbars/button":27,"../utils":30}],11:[function(require,module,exports){
+},{"../errors":4,"../loader":22,"../toolbars/button":27,"../utils":30,"./embeddedComponent":11}],11:[function(require,module,exports){
 'use strict';
 
 var Utils = require('../utils');
@@ -8148,9 +8176,9 @@ var Selection = (function() {
       selection.addRange(range);
 
       // Scroll the selected component into view.
-      if (this.start.component.dom.scrollIntoViewIfNeeded) {
-        this.start.component.dom.scrollIntoViewIfNeeded(false);
-      }
+      // if (this.start.component.dom.scrollIntoViewIfNeeded) {
+      //   this.start.component.dom.scrollIntoViewIfNeeded(false);
+      // }
       var event = new Event(Selection.Events.SELECTION_CHANGED);
       this.dispatchEvent(event);
     };

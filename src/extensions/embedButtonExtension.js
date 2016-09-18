@@ -4,7 +4,8 @@ var Utils = require('../utils');
 var Errors = require('../errors');
 var Loader = require('../loader');
 var Button = require('../toolbars/button');
-var Paragraph = require('../paragraph');
+var EmbeddedComponent = require('./embeddedComponent');
+// var Paragraph = require('../paragraph');
 // var I18n = require('../i18n');
 
 /**
@@ -54,7 +55,6 @@ EmbedButtonExtension.CLASS_NAME = 'EmbedButtonExtension';
  */
 EmbedButtonExtension.BLOCK_TOOLBAR_NAME = 'block-toolbar';
 
-
 /**
  * Instantiate an instance of the extension and configure it.
  * @param  {Editor} editor Instance of the editor installing this extension.
@@ -91,9 +91,12 @@ EmbedButtonExtension.prototype.init = function() {
   this.blockToolbar = this.editor.getToolbar(EmbedButtonExtension.BLOCK_TOOLBAR_NAME);
 
   // add button to toolbar
-  var insertButton = new Button({ label: '+' });
+  var insertButton = new Button({
+    name: 'embed',
+    label: '+'
+  });
   // insertButton.setVisible(false);
-  insertButton.addEventListener('click', this.handleInsertClicked.bind(this));
+  // insertButton.addEventListener('click', this.handleInsertClicked.bind(this));
 
   this.blockToolbar.addButton(insertButton);
 
@@ -154,25 +157,46 @@ EmbedButtonExtension.prototype.init = function() {
 };
 
 
-EmbedButtonExtension.prototype.handleInsertClicked = function(event) {
+// EmbedButtonExtension.prototype.handleInsertClicked = function(event) {
 
   // open dialog
-  console.log('Opening embed dialog...');
+  // console.log('Opening embed dialog...');
 
   // embed dialog will do insersion
 
-  var button = event.detail.target;
-  var placeholder = button.data.placeholder;
-  var newP = new Paragraph({
-    placeholderText: placeholder,
-    section: this.editor.selection.getSectionAtStart()
-  });
+  // var button = event.detail.target;
+  // var placeholder = button.data.placeholder;
+  // var newP = new Paragraph({
+  //   placeholderText: placeholder,
+  //   section: this.editor.selection.getSectionAtStart()
+  // });
 
-  var index = this.editor.selection.getComponentAtStart().getIndexInSection();
-  this.editor.article.transaction(newP.getInsertOps(index));
+  // var index = this.editor.selection.getComponentAtStart().getIndexInSection();
+  // this.editor.article.transaction(newP.getInsertOps(index));
+// };
+
+// CUSTOM CREO FUNCTIONALITY
+EmbedButtonExtension.insertEmbed = function (editor, config) {
+
+  // var newEmbed = new EmbeddedComponent({
+  //   url: "https://videogamer.com/media/deus-ex-mankind-divided1111111",
+  //   type: "image",
+  //   provider: "creo",
+  //   serviceName: "VideoGamer",
+  //   section: editor.selection.getSectionAtStart()
+  // });
+
+  var newEmbed     = new EmbeddedComponent(config),
+      curComponent = editor.selection.getComponentAtStart(),
+      index        = curComponent.getIndexInSection();
+
+  // delete current matched component (created Paragraph)
+  editor.article.transaction(curComponent.getDeleteOps(index));
+
+  // insert embed
+  editor.article.transaction(newEmbed.getInsertOps(index));
 };
-
-
+// END CUSTOM CREO FUNCTIONALITY
 
 /**
  * Handles regex match by instantiating a component.
