@@ -2077,6 +2077,9 @@ Editor.prototype.processPastedContent = function(element, indexOffset) {
     for (var i = 0; i < children.length; i++) {
       var el = children[i];
       var tag = el.nodeName && el.nodeName.toLowerCase();
+
+      console.log(tag);
+
       switch (tag) {
         // These tags are currently unsupported for paste and are stripped out.
         case undefined:
@@ -2086,31 +2089,33 @@ Editor.prototype.processPastedContent = function(element, indexOffset) {
         case 'embed':
         case 'br':
         case 'hr':
-          continue;
-        case 'figure':
-          var allImgs = el.getElementsByTagName('img');
-          if (!allImgs || !allImgs.length) {
-            continue;
-          }
-          for (var j = 0; j < allImgs.length; j++) {
-            component = new Figure({
-              src: allImgs[j].getAttribute('src')
-            });
-            component.section = selection.getSectionAtEnd();
-            Utils.arrays.extend(
-                ops, component.getInsertOps(currentIndex++), cursor);
-          }
-          paragraphType = null;
-          break;
         case 'img':
-          component = new Figure({
-            src: el.getAttribute('src')
-          });
-          component.section = selection.getSectionAtEnd();
-          Utils.arrays.extend(
-              ops, component.getInsertOps(currentIndex++, cursor));
-          paragraphType = null;
-          break;
+        case 'figure':
+          continue;
+        // case 'figure':
+        //   var allImgs = el.getElementsByTagName('img');
+        //   if (!allImgs || !allImgs.length) {
+        //     continue;
+        //   }
+        //   for (var j = 0; j < allImgs.length; j++) {
+        //     component = new Figure({
+        //       src: allImgs[j].getAttribute('src')
+        //     });
+        //     component.section = selection.getSectionAtEnd();
+        //     Utils.arrays.extend(
+        //         ops, component.getInsertOps(currentIndex++), cursor);
+        //   }
+        //   paragraphType = null;
+        //   break;
+        // case 'img':
+        //   component = new Figure({
+        //     src: el.getAttribute('src')
+        //   });
+        //   component.section = selection.getSectionAtEnd();
+        //   Utils.arrays.extend(
+        //       ops, component.getInsertOps(currentIndex++, cursor));
+        //   paragraphType = null;
+        //   break;
         case 'ul':
         case 'ol':
           var tagName = List.UNORDERED_LIST_TAG;
@@ -2128,7 +2133,7 @@ Editor.prototype.processPastedContent = function(element, indexOffset) {
           component.section = selection.getSectionAtEnd();
           Utils.arrays.extend(
               ops, component.getInsertOps(currentIndex++, cursor));
-          for (j = 0; j < lis.length; j++) {
+          for (var j = 0; j < lis.length; j++) {
             newP = new Paragraph({
               paragraphType: Paragraph.Types.ListItem,
               text: Utils.getTextFromElement(lis[j])
@@ -3322,6 +3327,7 @@ module.exports = ComponentFactory;
  */
 ComponentFactory.prototype.registerRegex = function(
     regex, factoryMethod, optForce) {
+  console.log(regex);
   if (this.regexToFactories[regex] && !optForce) {
     throw Errors.AlreadyRegisteredError(
         'This Regex "' + regex + '" has already been registered.');
@@ -3660,6 +3666,7 @@ EmbedButtonExtension.insertEmbed = function (editor, config) {
  */
 EmbedButtonExtension.prototype.handleRegexMatch = function(
     matchedComponent, opsCallback, provider) {
+
   var atIndex = matchedComponent.getIndexInSection();
   var ops = [];
   var embeddedComponent = new this.ComponentClass({
@@ -5713,7 +5720,7 @@ Figure.CAPTION_TAG_NAME = 'figcaption';
  * @type {Array.<string>}
  */
 Figure.IMAGE_URL_REGEXS = [
-    'https?://(.*)\.(jpg|png|gif|jpeg)$'
+    // 'https?://(.*)\.(jpg|png|gif|jpeg)$'
 ];
 
 

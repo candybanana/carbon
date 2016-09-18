@@ -206,6 +206,7 @@ EmbedButtonExtension.insertEmbed = function (editor, config) {
  */
 EmbedButtonExtension.prototype.handleRegexMatch = function(
     matchedComponent, opsCallback, provider) {
+
   var atIndex = matchedComponent.getIndexInSection();
   var ops = [];
   var embeddedComponent = new this.ComponentClass({

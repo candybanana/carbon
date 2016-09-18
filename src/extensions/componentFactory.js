@@ -26,6 +26,7 @@ module.exports = ComponentFactory;
  */
 ComponentFactory.prototype.registerRegex = function(
     regex, factoryMethod, optForce) {
+  console.log(regex);
   if (this.regexToFactories[regex] && !optForce) {
     throw Errors.AlreadyRegisteredError(
         'This Regex "' + regex + '" has already been registered.');

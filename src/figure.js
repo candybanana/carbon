@@ -139,7 +139,7 @@ Figure.CAPTION_TAG_NAME = 'figcaption';
  * @type {Array.<string>}
  */
 Figure.IMAGE_URL_REGEXS = [
-    'https?://(.*)\.(jpg|png|gif|jpeg)$'
+    // 'https?://(.*)\.(jpg|png|gif|jpeg)$'
 ];
 
 
