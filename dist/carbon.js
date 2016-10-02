@@ -2078,8 +2078,6 @@ Editor.prototype.processPastedContent = function(element, indexOffset) {
       var el = children[i];
       var tag = el.nodeName && el.nodeName.toLowerCase();
 
-      console.log(tag);
-
       switch (tag) {
         // These tags are currently unsupported for paste and are stripped out.
         case undefined:
@@ -3327,7 +3325,7 @@ module.exports = ComponentFactory;
  */
 ComponentFactory.prototype.registerRegex = function(
     regex, factoryMethod, optForce) {
-  console.log(regex);
+
   if (this.regexToFactories[regex] && !optForce) {
     throw Errors.AlreadyRegisteredError(
         'This Regex "' + regex + '" has already been registered.');
