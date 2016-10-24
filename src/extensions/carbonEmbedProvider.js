@@ -23,6 +23,7 @@ var CarbonEmbedProvider = function (optParams) {
       slideshare: false,
       facebookPosts: true,
       facebookVideos: false,
+      gfycat: true,
     }
   }, optParams);
 
@@ -106,7 +107,11 @@ CarbonEmbedProvider.PROVIDERS_OEMBED_REGEX_MAP = {
   github: {
     '^https?://gist\.github\.com/.*':
         'https://noembed.com/embed?format=json'
-  }
+  },
+  gfycat: {
+    '^https?://(?:www\.)?gfycat\.com/.*':
+        'https://noembed.com/embed'
+  },
 };
 
 
